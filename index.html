@@ -202,12 +202,12 @@
         }
 
         .face.jealous .mouth {
-            width: 40px;
+            width: 20px;
             height: 10px;
-            border-bottom: 3px solid #cc8866;
-            border-radius: 0;
+            border-bottom: none;
+            border-top: 3px solid #8b5a3a;
+            border-radius: 50% 50% 0 0;
             bottom: 30%;
-            transform: translateX(10px);
         }
 
         /* Crying Expression (Top Right) */
@@ -226,11 +226,11 @@
         }
 
         .face.crying .mouth {
-            width: 50px;
-            height: 40px;
-            border-radius: 50%;
-            border: 3px solid #cc8866;
-            border-top: none;
+            width: 40px;
+            height: 35px;
+            border-radius: 40% 40% 50% 50%;
+            background-color: #6b4423;
+            border: none;
             bottom: 20%;
         }
 
@@ -518,13 +518,17 @@
         }
 
         .face.suspicious .mouth {
-            width: 50px;
-            height: 5px;
-            border-bottom: none;
-            border-top: 4px solid #8b5a3a;
-            border-radius: 5px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 3px solid #8b5a3a;
+            background-color: transparent;
             bottom: 28%;
-            transform: rotate(-5deg) translateX(10px);
+            transform: translateX(15px);
+            /* Whistling to side */
+            border-top: 3px solid #8b5a3a;
+            /* Ensure full border for circle */
+            border-bottom: 3px solid #8b5a3a;
         }
 
         /* Adjust eyes slightly for shifty look */
@@ -616,22 +620,34 @@
         function startPeekingBehavior() {
             if (suspiciousInterval) return; // Already running
 
+            const lookUp = () => {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                // Look at random spot in top 40% of screen
+                const randomX = Math.random() * width;
+                const randomY = Math.random() * (height * 0.4);
+                moveEyesTo(randomX, randomY);
+            };
+
+            // Initial look up
+            lookUp();
+
             suspiciousInterval = setInterval(() => {
-                // Randomly peek every 1.5 - 3 seconds
-                if (Math.random() > 0.6) { // 40% chance to peek per interval tick
+                // 30% chance to peek at cursor
+                if (Math.random() > 0.7) {
                     isPeeking = true;
-                    // Look normal (at cursor) for a split second
+                    // Peek at user
                     moveEyesTo(lastMouseX, lastMouseY);
 
                     setTimeout(() => {
                         isPeeking = false;
-                        // Will naturally revert to looking away in next move/idle update or immediately if we call update
-                        const width = window.innerWidth;
-                        const height = window.innerHeight;
-                        // Quick way to force update: trigger look away relative to last mouse pos
-                        const awayX = width - lastMouseX;
-                        moveEyesTo(awayX, lastMouseY); // Look opposite X
-                    }, 400); // Peek duration
+                        lookUp(); // Look back up innocently
+                    }, 500); // Short peek
+                } else {
+                    // 70% chance to just change where we are looking up (shifting eyes)
+                    if (!isPeeking) {
+                        lookUp();
+                    }
                 }
             }, 1000);
         }
@@ -880,8 +896,7 @@
                 !face.classList.contains('sneezing')) {
 
                 if (face.classList.contains('suspicious') && !isPeeking) {
-                    // Look away
-                    moveEyesTo(width - x, y);
+                    // Allow interval to control eyes (looking up/around)
                 } else {
                     moveEyesTo(x, y);
                 }
