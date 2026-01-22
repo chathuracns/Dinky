@@ -21,33 +21,33 @@
         .face {
             width: 320px;
             height: 320px;
-            background-color: #d6b07c;
+            background-color: #c6823d;
             border-radius: 50%;
             position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 16px 28px rgba(0, 0, 0, 0.14);
             transition: background-color 0.3s, transform 0.3s;
         }
 
         .ear {
             position: absolute;
-            width: 120px;
-            height: 140px;
-            background: #b18452;
-            border-radius: 60% 60% 30% 30%;
-            top: -50px;
+            width: 130px;
+            height: 150px;
+            background: linear-gradient(180deg, #754821 0%, #4a2c18 100%);
+            border-radius: 62% 62% 32% 32%;
+            top: -46px;
             z-index: 0;
-            box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.08);
+            box-shadow: inset 0 -10px 0 rgba(0, 0, 0, 0.08);
         }
 
         .ear::before {
             content: '';
             position: absolute;
-            inset: 16px;
-            background: #e6c69c;
-            border-radius: 50% 50% 30% 30%;
+            inset: 18px;
+            background: #d7b07e;
+            border-radius: 52% 52% 34% 34%;
         }
 
         .ear.left {
@@ -64,24 +64,24 @@
             display: flex;
             gap: 26px;
             position: absolute;
-            top: 34%;
+            top: 35%;
             z-index: 2;
         }
 
         .eye {
-            width: 82px;
-            height: 82px;
+            width: 94px;
+            height: 94px;
             background-color: #fff;
             border-radius: 50%;
             position: relative;
-            box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.15);
+            box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.18);
             overflow: hidden;
         }
 
         .pupil {
-            width: 32px;
-            height: 32px;
-            background-color: #222;
+            width: 36px;
+            height: 36px;
+            background: radial-gradient(circle at 30% 30%, #444 0%, #111 60%);
             border-radius: 50%;
             position: absolute;
             top: 50%;
@@ -90,8 +90,19 @@
             transition: transform 0.12s ease-out;
         }
 
+        .pupil::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            top: 18%;
+            left: 18%;
+        }
+
         .eyebrow {
-            width: 90px;
+            width: 94px;
             height: 16px;
             background-color: #5a402b;
             position: absolute;
@@ -113,8 +124,8 @@
 
         .cheek {
             position: absolute;
-            width: 58px;
-            height: 34px;
+            width: 62px;
+            height: 36px;
             background: #f4b4b4;
             border-radius: 50%;
             top: 56%;
@@ -148,26 +159,59 @@
             right: 30%;
         }
 
+        .forehead-blaze {
+            position: absolute;
+            width: 36px;
+            height: 170px;
+            background: #f1d7b4;
+            top: 4%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 40px;
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.2);
+            z-index: 1;
+        }
+
         .muzzle {
             position: absolute;
-            width: 170px;
-            height: 120px;
-            background: #e8cf9f;
-            border-radius: 50% 50% 60% 60%;
+            width: 178px;
+            height: 124px;
+            background: #f1d7b4;
+            border-radius: 50% 50% 64% 64%;
             bottom: 18%;
-            box-shadow: inset 0 6px 10px rgba(0, 0, 0, 0.08);
+            box-shadow: inset 0 7px 12px rgba(0, 0, 0, 0.08);
             z-index: 2;
+        }
+
+        .muzzle::before,
+        .muzzle::after {
+            content: '';
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #a8734a;
+            border-radius: 50%;
+            bottom: 38px;
+        }
+
+        .muzzle::before {
+            left: 62px;
+        }
+
+        .muzzle::after {
+            right: 62px;
         }
 
         .nose {
             position: absolute;
-            width: 44px;
-            height: 32px;
+            width: 46px;
+            height: 34px;
             background: #1f1f1f;
             border-radius: 55% 55% 70% 70%;
-            top: -6px;
+            top: -4px;
             left: 50%;
             transform: translateX(-50%);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
         }
 
         .mouth {
@@ -298,6 +342,7 @@
     <div class="face" id="face">
         <div class="ear left"></div>
         <div class="ear right"></div>
+        <div class="forehead-blaze"></div>
         <div class="eyebrow left"></div>
         <div class="eyebrow right"></div>
         <div class="eyes-container">
