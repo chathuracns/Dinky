@@ -45,7 +45,7 @@
             background-color: white;
             border-radius: 50%;
             position: relative;
-            overflow: hidden;
+            .paw {
             box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
             transition: height 0.3s, margin-top 0.3s;
         }
@@ -57,170 +57,77 @@
             border-radius: 50%;
             position: absolute;
             top: 50%;
+            .paw {
+                width: 300px;
+                height: 340px;
+                position: relative;
+                display: flex;
+                justify-content: center;
+                align-items: flex-end;
+            }
+
+            .pad {
+                width: 170px;
+                height: 180px;
+                background: #ffcc99;
+                border-radius: 50% 50% 60% 60% / 60% 60% 100% 100%;
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+            }
+
+            .toe {
+                position: absolute;
+                background: #ffcc99;
+                border-radius: 50%;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.07);
+            }
+            .toe1 {
+                width: 60px;
+                height: 70px;
+                left: 30px;
+                top: 30px;
+            }
+            .toe2 {
+                width: 65px;
+                height: 75px;
+                left: 90px;
+                top: 10px;
+            }
+            .toe3 {
+                width: 65px;
+                height: 75px;
+                right: 90px;
+                top: 10px;
+            }
+            .toe4 {
+                width: 60px;
+                height: 70px;
+                right: 30px;
+                top: 30px;
+            }
             left: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
         }
+            /* Hide all face features for paw */
 
         .eyebrow {
             width: 80px;
             height: 15px;
             background-color: #5d4037;
             position: absolute;
-            top: 25%;
+        <div class="paw" id="paw">
             border-radius: 10px;
             transition: transform 0.3s, top 0.3s;
             z-index: 3;
         }
 
-        .eyebrow.left {
-            left: 55px;
-        }
-
-        .eyebrow.right {
-            right: 55px;
-        }
-
-        .mouth {
-            width: 100px;
-            height: 50px;
-            border-bottom: 5px solid #cc8866;
-            border-radius: 0 0 50px 50px;
-            position: absolute;
-            bottom: 25%;
+        </div>
             transition: all 0.3s;
-        }
-
-        .tear {
-            width: 15px;
-            height: 15px;
-            background-color: #3498db;
-            border-radius: 0 50% 50% 50%;
-            position: absolute;
-            top: 60%;
-            transform: rotate(45deg);
-            opacity: 0;
-            transition: opacity 0.3s, top 1s;
-        }
-
-        .tear.left {
-            left: 80px;
-        }
-
-        .tear.right {
-            right: 80px;
-        }
-
-        .cheek {
-            width: 40px;
-            height: 25px;
-            background-color: #ff8fa3;
-            border-radius: 50%;
-            position: absolute;
-            top: 55%;
-            opacity: 0;
-            transition: opacity 0.5s;
-            z-index: 1;
-        }
-
-        .cheek.left {
-            left: 50px;
-        }
-
-        .cheek.right {
-            right: 50px;
-        }
-
-        /* Angry Expression */
-        .face.angry {
-            background-color: #ffb3b3;
-        }
-
-        .face.angry .eyebrow.left {
-            transform: rotate(20deg);
-            top: 28%;
-        }
-
-        .face.angry .eyebrow.right {
-            transform: rotate(-20deg);
-            top: 28%;
-        }
-
-        .face.angry .mouth {
-            border-bottom: none;
-            border-top: 5px solid #cc8866;
-            border-radius: 50px 50px 0 0;
-            bottom: 20%;
-        }
-
-        /* Sad Expression */
-        .face.sad {
-            background-color: #e0e0e0;
-        }
-
-        .face.sad .eyebrow.left {
-            transform: rotate(-15deg);
-            top: 22%;
-        }
-
-        .face.sad .eyebrow.right {
-            transform: rotate(15deg);
-            top: 22%;
-        }
-
-        .face.sad .mouth {
-            width: 60px;
-            height: 20px;
-            border-bottom: none;
-            border-top: 5px solid #cc8866;
-            border-radius: 30px 30px 0 0;
-            bottom: 22%;
-        }
-
-        .face.sad .tear {
-            opacity: 1;
-            animation: cry 2s infinite;
-        }
-
-        /* Jealous Expression (Top Left/Center) */
-        .face.jealous {
-            background-color: #fffacd;
-        }
-
-        .face.jealous .eyebrow.left {
-            transform: rotate(5deg) translateY(5px);
-        }
-
-        .face.jealous .eyebrow.right {
-            transform: rotate(-15deg);
-        }
-
-        .face.jealous .eye {
-            height: 60px;
-            /* Squint */
-            margin-top: 10px;
-        }
-
-        .face.jealous .mouth {
-            width: 40px;
-            height: 10px;
-            border-bottom: 3px solid #cc8866;
-            border-radius: 0;
-            bottom: 30%;
-            transform: translateX(10px);
-        }
-
-        /* Crying Expression (Top Right) */
-        .face.crying {
-            background-color: #dbeeff;
-        }
-
-        .face.crying .eyebrow.left {
-            transform: rotate(-20deg);
-            top: 20%;
-        }
-
-        .face.crying .eyebrow.right {
+        <!-- No script needed for static paw print -->
             transform: rotate(20deg);
             top: 20%;
         }
