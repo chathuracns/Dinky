@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Realistic Dog - Eye Tracker</title>
+    <title>Eye Tracker</title>
     <style>
         body {
             margin: 0;
@@ -13,276 +13,346 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, #e8f4f8 0%, #f0f2f5 100%);
+            background-color: #f0f2f5;
             font-family: sans-serif;
+            transition: background-color 0.5s;
         }
 
-        .container {
+        .face {
+            width: 300px;
+            height: 300px;
+            background-color: #ffcc99;
+            border-radius: 50%;
             position: relative;
-            width: 420px;
-            height: 480px;
-            filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.15));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s;
         }
 
-        svg {
-            width: 100%;
-            height: 100%;
+        .eyes-container {
+            display: flex;
+            gap: 20px;
+            position: absolute;
+            top: 35%;
+            z-index: 2;
         }
 
-        .pupil-left, .pupil-right {
-            transition: transform 0.12s ease-out;
+        .eye {
+            width: 80px;
+            height: 80px;
+            background-color: white;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: height 0.3s, margin-top 0.3s;
         }
 
-        .face.cuddling .eye-left,
-        .face.cuddling .eye-right {
-            opacity: 0.2;
+        .pupil {
+            width: 30px;
+            height: 30px;
+            background-color: #333;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
 
-        .face.cuddling .pupil-left,
-        .face.cuddling .pupil-right {
-            r: 2;
+        .eyebrow {
+            width: 80px;
+            height: 15px;
+            background-color: #5d4037;
+            position: absolute;
+            top: 25%;
+            border-radius: 10px;
+            transition: transform 0.3s, top 0.3s;
+            z-index: 3;
         }
 
-        .cheek-blush {
+        .eyebrow.left {
+            left: 55px;
+        }
+
+        .eyebrow.right {
+            right: 55px;
+        }
+
+        .mouth {
+            width: 100px;
+            height: 50px;
+            border-bottom: 5px solid #cc8866;
+            border-radius: 0 0 50px 50px;
+            position: absolute;
+            bottom: 25%;
+            transition: all 0.3s;
+        }
+
+        .tear {
+            width: 15px;
+            height: 15px;
+            background-color: #3498db;
+            border-radius: 0 50% 50% 50%;
+            position: absolute;
+            top: 60%;
+            transform: rotate(45deg);
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.3s, top 1s;
         }
 
-        .face.cuddling .cheek-blush {
-            opacity: 0.7;
+        .tear.left {
+            left: 80px;
         }
 
-        .tear-drop {
+        .tear.right {
+            right: 80px;
+        }
+
+        .cheek {
+            width: 40px;
+            height: 25px;
+            background-color: #ff8fa3;
+            border-radius: 50%;
+            position: absolute;
+            top: 55%;
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: opacity 0.5s;
+            z-index: 1;
         }
 
-        .face.crying .tear-drop {
+        .cheek.left {
+            left: 50px;
+        }
+
+        .cheek.right {
+            right: 50px;
+        }
+
+        /* Angry Expression */
+        .face.angry {
+            background-color: #ffb3b3;
+        }
+
+        .face.angry .eyebrow.left {
+            transform: rotate(20deg);
+            top: 28%;
+        }
+
+        .face.angry .eyebrow.right {
+            transform: rotate(-20deg);
+            top: 28%;
+        }
+
+        .face.angry .mouth {
+            border-bottom: none;
+            border-top: 5px solid #cc8866;
+            border-radius: 50px 50px 0 0;
+            bottom: 20%;
+        }
+
+        /* Sad Expression */
+        .face.sad {
+            background-color: #e0e0e0;
+        }
+
+        .face.sad .eyebrow.left {
+            transform: rotate(-15deg);
+            top: 22%;
+        }
+
+        .face.sad .eyebrow.right {
+            transform: rotate(15deg);
+            top: 22%;
+        }
+
+        .face.sad .mouth {
+            width: 60px;
+            height: 20px;
+            border-bottom: none;
+            border-top: 5px solid #cc8866;
+            border-radius: 30px 30px 0 0;
+            bottom: 22%;
+        }
+
+        .face.sad .tear {
+            opacity: 1;
+            animation: cry 2s infinite;
+        }
+
+        /* Jealous Expression (Top Left/Center) */
+        .face.jealous {
+            background-color: #fffacd;
+        }
+
+        .face.jealous .eyebrow.left {
+            transform: rotate(5deg) translateY(5px);
+        }
+
+        .face.jealous .eyebrow.right {
+            transform: rotate(-15deg);
+        }
+
+        .face.jealous .eye {
+            height: 60px;
+            /* Squint */
+            margin-top: 10px;
+        }
+
+        .face.jealous .mouth {
+            width: 40px;
+            height: 10px;
+            border-bottom: 3px solid #cc8866;
+            border-radius: 0;
+            bottom: 30%;
+            transform: translateX(10px);
+        }
+
+        /* Crying Expression (Top Right) */
+        .face.crying {
+            background-color: #dbeeff;
+        }
+
+        .face.crying .eyebrow.left {
+            transform: rotate(-20deg);
+            top: 20%;
+        }
+
+        .face.crying .eyebrow.right {
+            transform: rotate(20deg);
+            top: 20%;
+        }
+
+        .face.crying .mouth {
+            width: 50px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid #cc8866;
+            border-top: none;
+            bottom: 20%;
+        }
+
+        .face.crying .tear {
             opacity: 1;
             animation: cry 0.8s infinite;
         }
 
-        .mouth-normal {
-            opacity: 1;
-            transition: opacity 0.2s;
+        /* Cuddling (Head Hover) */
+        .face.cuddling {
+            background-color: #ffd1dc;
         }
 
-        .mouth-open {
-            opacity: 0;
-            transition: opacity 0.2s;
+        .face.cuddling .cheek {
+            opacity: 0.6;
         }
 
-        .mouth-sad {
-            opacity: 0;
-            transition: opacity 0.2s;
+        .face.cuddling .eye {
+            height: 10px;
+            margin-top: 35px;
+            border-radius: 5px;
         }
 
-        .mouth-demanding {
-            opacity: 0;
-            transition: opacity 0.2s;
+        .face.cuddling .pupil {
+            display: none;
         }
 
-        .face.sad .mouth-normal {
-            opacity: 0;
+        .face.cuddling .mouth {
+            width: 80px;
+            height: 40px;
+            border-bottom: 6px solid #d45d79;
+            border-radius: 0 0 50px 50px;
+            bottom: 28%;
         }
 
-        .face.sad .mouth-sad {
-            opacity: 1;
+        .face.cuddling .eyebrow {
+            top: 28%;
         }
 
-        .face.demanding .mouth-normal {
-            opacity: 0;
-        }
-
-        .face.demanding .mouth-demanding {
-            opacity: 1;
-        }
-
-        .face.demanding {
-            animation: nudge 0.5s infinite alternate;
-        }
-
-        .face.cuddling .mouth-normal {
-            opacity: 0;
-        }
-
-        .face.cuddling .mouth-open {
-            opacity: 1;
-        }
-
-        .eyebrow-left, .eyebrow-right {
-            transition: transform 0.2s;
-        }
-
-        .face.jealous .eyebrow-left {
-            transform: rotate(10deg) translateY(-2px);
-            transform-origin: center;
-        }
-
-        .face.jealous .eyebrow-right {
-            transform: rotate(-10deg) translateY(-2px);
-            transform-origin: center;
-        }
-
-        .face.demanding .eyebrow-left {
-            transform: rotate(15deg) translateY(-4px);
-            transform-origin: center;
-        }
-
-        .face.demanding .eyebrow-right {
-            transform: rotate(-15deg) translateY(-4px);
-            transform-origin: center;
+        /* Blinking */
+        .face.blinking .eye {
+            height: 5px;
+            margin-top: 38px;
+            border-radius: 2px;
         }
 
         @keyframes cry {
             0% {
-                transform: translateY(0);
+                top: 60%;
                 opacity: 1;
             }
+
             100% {
-                transform: translateY(35px);
+                top: 80%;
                 opacity: 0;
             }
         }
 
+        /* Demanding Expression (Stopped Touching) */
+        .face.demanding {
+            background-color: #ffd1dc;
+            animation: nudge 0.5s infinite alternate;
+        }
+
+        .face.demanding .eyebrow {
+            top: 20%;
+        }
+
+        .face.demanding .eyebrow.left {
+            transform: rotate(-10deg);
+        }
+
+        .face.demanding .eyebrow.right {
+            transform: rotate(10deg);
+        }
+
+        .face.demanding .eye {
+            height: 90px;
+            width: 90px;
+            margin-top: -5px;
+        }
+
+        .face.demanding .mouth {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 4px solid #cc8866;
+            background-color: transparent;
+            bottom: 30%;
+        }
+
+        /* Animation for Demanding */
         @keyframes nudge {
             0% {
                 transform: translateY(0);
             }
+
             100% {
-                transform: translateY(-8px);
+                transform: translateY(-5px);
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="container" id="face">
-        <svg viewBox="0 0 280 340" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 8px 20px rgba(0,0,0,0.12));">
-            <defs>
-                <radialGradient id="headGradient" cx="40%" cy="35%">
-                    <stop offset="0%" style="stop-color:#dfa55d;stop-opacity:1" />
-                    <stop offset="70%" style="stop-color:#c6823d;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#9d6829;stop-opacity:1" />
-                </radialGradient>
-                
-                <radialGradient id="earGradient" cx="40%" cy="25%">
-                    <stop offset="0%" style="stop-color:#a37145;stop-opacity:1" />
-                    <stop offset="60%" style="stop-color:#7d5225;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#5a3b18;stop-opacity:1" />
-                </radialGradient>
 
-                <radialGradient id="muzzleGradient" cx="50%" cy="35%">
-                    <stop offset="0%" style="stop-color:#fcecd5;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#e8d4b8;stop-opacity:1" />
-                </radialGradient>
-
-                <radialGradient id="eyeGradient" cx="45%" cy="40%">
-                    <stop offset="0%" style="stop-color:#fafafa;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#efefef;stop-opacity:1" />
-                </radialGradient>
-
-                <radialGradient id="pupilGradient" cx="30%" cy="30%">
-                    <stop offset="0%" style="stop-color:#3a3a3a;stop-opacity:1" />
-                    <stop offset="60%" style="stop-color:#1a1a1a;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
-                </radialGradient>
-
-                <filter id="blurShadow">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" />
-                </filter>
-            </defs>
-
-            <!-- Head Base -->
-            <ellipse cx="140" cy="145" rx="110" ry="125" fill="url(#headGradient)" stroke="#8b6f47" stroke-width="0.5"/>
-
-            <!-- Head Shadow for depth -->
-            <ellipse cx="140" cy="150" rx="110" ry="125" fill="rgba(0,0,0,0.08)" stroke="none" opacity="0.5"/>
-
-            <!-- Left Ear -->
-            <ellipse cx="52" cy="65" rx="42" ry="68" fill="url(#earGradient)" stroke="#6b4f32" stroke-width="1" transform="rotate(-28 52 65)"/>
-            <ellipse cx="56" cy="72" rx="26" ry="50" fill="#d9b896" stroke="none" transform="rotate(-28 56 72)"/>
-            <!-- Ear inner shadow -->
-            <ellipse cx="56" cy="72" rx="24" ry="48" fill="rgba(0,0,0,0.06)" stroke="none" transform="rotate(-28 56 72)"/>
-
-            <!-- Right Ear -->
-            <ellipse cx="228" cy="65" rx="42" ry="68" fill="url(#earGradient)" stroke="#6b4f32" stroke-width="1" transform="rotate(28 228 65)"/>
-            <ellipse cx="224" cy="72" rx="26" ry="50" fill="#d9b896" stroke="none" transform="rotate(28 224 72)"/>
-            <!-- Ear inner shadow -->
-            <ellipse cx="224" cy="72" rx="24" ry="48" fill="rgba(0,0,0,0.06)" stroke="none" transform="rotate(28 224 72)"/>
-
-            <!-- Forehead Blaze -->
-            <path d="M 133 35 Q 128 65 135 130 Q 140 145 145 130 Q 152 65 147 35 Q 144.5 30 140 30 Q 135.5 30 133 35" fill="#f9ebe0" stroke="none"/>
-            <path d="M 135 35 Q 130 65 137 130 Q 140 142 143 130 Q 150 65 145 35 Q 143 32 140 32 Q 137 32 135 35" fill="rgba(255,255,255,0.3)" stroke="none"/>
-
-            <!-- Left Eye White -->
-            <circle class="eye-left" cx="93" cy="132" r="30" fill="url(#eyeGradient)" stroke="#a58968" stroke-width="1.5"/>
-            <!-- Eye highlight/shine -->
-            <ellipse cx="90" cy="125" rx="8" ry="10" fill="rgba(255,255,255,0.9)" opacity="0.6"/>
-            
-            <!-- Right Eye White -->
-            <circle class="eye-right" cx="187" cy="132" r="30" fill="url(#eyeGradient)" stroke="#a58968" stroke-width="1.5"/>
-            <!-- Eye highlight/shine -->
-            <ellipse cx="190" cy="125" rx="8" ry="10" fill="rgba(255,255,255,0.9)" opacity="0.6"/>
-
-            <!-- Left Pupil -->
-            <circle class="pupil-left" cx="93" cy="137" r="16" fill="url(#pupilGradient)"/>
-            <circle cx="89" cy="130" r="6" fill="#ffffff" opacity="0.85"/>
-
-            <!-- Right Pupil -->
-            <circle class="pupil-right" cx="187" cy="137" r="16" fill="url(#pupilGradient)"/>
-            <circle cx="191" cy="130" r="6" fill="#ffffff" opacity="0.85"/>
-
-            <!-- Left Eyebrow -->
-            <path class="eyebrow-left" d="M 68 105 Q 93 92 118 98" stroke="#6b4f32" stroke-width="4.5" stroke-linecap="round" fill="none" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));"/>
-
-            <!-- Right Eyebrow -->
-            <path class="eyebrow-right" d="M 162 98 Q 187 92 212 105" stroke="#6b4f32" stroke-width="4.5" stroke-linecap="round" fill="none" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));"/>
-
-            <!-- Left Cheek Blush -->
-            <ellipse class="cheek-blush" cx="50" cy="160" rx="20" ry="16" fill="#f5a8a8" opacity="0"/>
-
-            <!-- Right Cheek Blush -->
-            <ellipse class="cheek-blush" cx="230" cy="160" rx="20" ry="16" fill="#f5a8a8" opacity="0"/>
-
-            <!-- Muzzle -->
-            <ellipse cx="140" cy="215" rx="78" ry="68" fill="url(#muzzleGradient)" stroke="#d4a574" stroke-width="1"/>
-            <!-- Muzzle depth shadow -->
-            <ellipse cx="140" cy="220" rx="75" ry="65" fill="rgba(0,0,0,0.05)" stroke="none"/>
-
-            <!-- Nose -->
-            <ellipse cx="140" cy="195" rx="18" ry="16" fill="#1a1a1a" stroke="#0a0a0a" stroke-width="0.5"/>
-            <!-- Nose shine -->
-            <ellipse cx="137" cy="192" rx="5" ry="4" fill="#404040" opacity="0.7"/>
-            <!-- Nose secondary highlight -->
-            <ellipse cx="143" cy="197" rx="3" ry="2" fill="#505050" opacity="0.5"/>
-
-            <!-- Mouth Normal (default smile) -->
-            <path class="mouth-normal" d="M 140 207 Q 120 230 105 223" stroke="#8b5a3a" stroke-width="3.5" stroke-linecap="round" fill="none" filter="url(#blurShadow)"/>
-            <path class="mouth-normal" d="M 140 207 Q 160 230 175 223" stroke="#8b5a3a" stroke-width="3.5" stroke-linecap="round" fill="none" filter="url(#blurShadow)"/>
-
-            <!-- Mouth Open (cuddling) -->
-            <ellipse class="mouth-open" cx="140" cy="230" rx="22" ry="20" fill="#6b4423" stroke="#5a3d21" stroke-width="1.5"/>
-            <ellipse class="mouth-open" cx="140" cy="228" rx="20" ry="6" fill="#d4a97f" opacity="0.4"/>
-
-            <!-- Mouth Sad (bottom zone) -->
-            <path class="mouth-sad" d="M 118 222 Q 140 235 162 222" stroke="#8b5a3a" stroke-width="3.5" stroke-linecap="round" fill="none" filter="url(#blurShadow)"/>
-
-            <!-- Mouth Demanding (circle) -->
-            <circle class="mouth-demanding" cx="140" cy="215" r="14" fill="none" stroke="#8b5a3a" stroke-width="3.5" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));"/>
-
-            <!-- Left Tear -->
-            <path class="tear-drop" d="M 90 165 Q 87 185 84 205 Q 84 210 89 210 Q 94 210 96 205 Q 96 185 92 165" fill="#7dd3ff" opacity="0" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));"/>
-
-            <!-- Right Tear -->
-            <path class="tear-drop" d="M 190 165 Q 193 185 196 205 Q 196 210 191 210 Q 186 210 184 205 Q 184 185 188 165" fill="#7dd3ff" opacity="0" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));"/>
-
-            <!-- Whiskers for realism -->
-            <line x1="52" y1="210" x2="30" y2="215" stroke="#a08060" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>
-            <line x1="52" y1="225" x2="28" y2="230" stroke="#a08060" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>
-            <line x1="228" y1="210" x2="250" y2="215" stroke="#a08060" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>
-            <line x1="228" y1="225" x2="252" y2="230" stroke="#a08060" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>
-        </svg>
+    <div class="face" id="face">
+        <div class="eyebrow left"></div>
+        <div class="eyebrow right"></div>
+        <div class="eyes-container">
+            <div class="eye">
+                <div class="pupil"></div>
+            </div>
+            <div class="eye">
+                <div class="pupil"></div>
+            </div>
+        </div>
+        <div class="cheek left"></div>
+        <div class="cheek right"></div>
+        <div class="tear left"></div>
+        <div class="tear right"></div>
+        <div class="mouth"></div>
     </div>
 
     <script>
@@ -298,68 +368,56 @@
         let isLookingAtUser = false;
 
         function moveEyesTo(targetX, targetY) {
-            const svg = document.querySelector('svg');
-            const svgRect = svg.getBoundingClientRect();
-            
-            // Left eye
-            const pupilLeft = document.querySelector('.pupil-left');
-            const eyeLeftCircle = document.querySelector('.eye-left');
-            const eyeLeftRect = eyeLeftCircle.getBoundingClientRect();
-            const eyeLeftCenterX = eyeLeftRect.left + eyeLeftRect.width / 2;
-            const eyeLeftCenterY = eyeLeftRect.top + eyeLeftRect.height / 2;
+            const eyes = document.querySelectorAll('.eye');
+            eyes.forEach(eye => {
+                const pupil = eye.querySelector('.pupil');
+                const rect = eye.getBoundingClientRect();
+                const eyeCenterX = rect.left + rect.width / 2;
+                const eyeCenterY = rect.top + rect.height / 2;
 
-            const angle1 = Math.atan2(targetY - eyeLeftCenterY, targetX - eyeLeftCenterX);
-            const maxDist1 = 12;
-            const distToMouse1 = Math.hypot(targetX - eyeLeftCenterX, targetY - eyeLeftCenterY);
-            const moveRad1 = Math.min(distToMouse1 / 6, maxDist1);
-            const moveX1 = Math.cos(angle1) * moveRad1;
-            const moveY1 = Math.sin(angle1) * moveRad1;
-            pupilLeft.setAttribute('cx', 93 + moveX1);
-            pupilLeft.setAttribute('cy', 137 + moveY1);
+                const angle = Math.atan2(targetY - eyeCenterY, targetX - eyeCenterX);
+                const maxDistance = (rect.width - pupil.offsetWidth) / 2;
+                const distanceToMouse = Math.hypot(targetX - eyeCenterX, targetY - eyeCenterY);
+                const moveRadius = Math.min(distanceToMouse / 5, maxDistance);
 
-            // Right eye
-            const pupilRight = document.querySelector('.pupil-right');
-            const eyeRightCircle = document.querySelector('.eye-right');
-            const eyeRightRect = eyeRightCircle.getBoundingClientRect();
-            const eyeRightCenterX = eyeRightRect.left + eyeRightRect.width / 2;
-            const eyeRightCenterY = eyeRightRect.top + eyeRightRect.height / 2;
+                const moveX = Math.cos(angle) * moveRadius;
+                const moveY = Math.sin(angle) * moveRadius;
 
-            const angle2 = Math.atan2(targetY - eyeRightCenterY, targetX - eyeRightCenterX);
-            const maxDist2 = 12;
-            const distToMouse2 = Math.hypot(targetX - eyeRightCenterX, targetY - eyeRightCenterY);
-            const moveRad2 = Math.min(distToMouse2 / 6, maxDist2);
-            const moveX2 = Math.cos(angle2) * moveRad2;
-            const moveY2 = Math.sin(angle2) * moveRad2;
-            pupilRight.setAttribute('cx', 187 + moveX2);
-            pupilRight.setAttribute('cy', 137 + moveY2);
+                pupil.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+            });
         }
 
         function lookAtUser() {
-            document.querySelector('.pupil-left').setAttribute('cx', '93');
-            document.querySelector('.pupil-left').setAttribute('cy', '137');
-            document.querySelector('.pupil-right').setAttribute('cx', '187');
-            document.querySelector('.pupil-right').setAttribute('cy', '137');
+            const pupils = document.querySelectorAll('.pupil');
+            pupils.forEach(pupil => {
+                // Reset to center
+                pupil.style.transform = `translate(-50%, -50%)`;
+            });
         }
 
         function startIdleBehavior() {
+            // Initially look at user when idle starts
             isLookingAtUser = true;
             lookAtUser();
 
             gazeInterval = setInterval(() => {
                 if (isLookingAtUser) {
+                    // Switch to looking at cursor
                     moveEyesTo(lastMouseX, lastMouseY);
                     isLookingAtUser = false;
                 } else {
+                    // Switch to looking at user
                     lookAtUser();
                     isLookingAtUser = true;
                 }
-            }, 2000);
+            }, 2000); // Switch every 2 seconds
         }
 
         document.addEventListener('mousemove', (e) => {
             const x = e.clientX;
             const y = e.clientY;
 
+            // Store last position for idle gaze
             lastMouseX = x;
             lastMouseY = y;
 
@@ -370,47 +428,86 @@
             const faceCenterX = faceRect.left + faceRect.width / 2;
             const faceCenterY = faceRect.top + faceRect.height / 2;
 
+            // Check if cursor is "touching head" (Upper half of face)
             const isOverFace = x >= faceRect.left && x <= faceRect.right &&
                 y >= faceRect.top && y <= faceRect.bottom;
 
+            // Update global state
             isTouchingHead = isOverFace && y < faceCenterY;
 
+            // Remove existing classes
             face.classList.remove('angry', 'sad', 'jealous', 'crying', 'demanding');
 
             if (isTouchingHead) {
+                // Active Movement -> Cuddling
                 face.classList.add('cuddling');
+
+                // Reset timeout for "stopping"
                 clearTimeout(cuddleTimeout);
                 cuddleTimeout = setTimeout(() => {
                     if (isTouchingHead) {
                         face.classList.remove('cuddling');
                         face.classList.add('demanding');
                     }
-                }, 200);
+                }, 200); // 200ms of no movement -> Demanding
             } else {
+                // Not touching head - Clear timeout and remove cuddling
                 clearTimeout(cuddleTimeout);
                 face.classList.remove('cuddling');
 
                 if (y < height * 0.1) {
-                    if (x > width * 0.75 && y < height * 0.01) {
-                        face.classList.add('crying');
-                    } else {
+                    // Top Zone
+                    if (x < width * 0.75) {
+                        // Left 75% -> Jealous
                         face.classList.add('jealous');
+                    } else {
+                        // Right 25% -> Crying
+                        face.classList.add('crying');
                     }
                 } else if (y > height * 0.8) {
+                    // Bottom Zone -> Sad
                     face.classList.add('sad');
                 }
+                // Else: Neutral or just following eyes
             }
 
+
+            // Eye Tracking Logic
+            // 1. Reset Idle Timers because we are moving
             clearTimeout(idleTimer);
             clearInterval(gazeInterval);
             isLookingAtUser = false;
 
-            idleTimer = setTimeout(startIdleBehavior, 1500);
+            // 2. Start new idle timer
+            idleTimer = setTimeout(startIdleBehavior, 1500); // Wait 1.5s after stop before starting idle behavior
 
+            // 3. Move eyes to cursor immediately (unless cuddling)
             if (!face.classList.contains('cuddling')) {
                 moveEyesTo(x, y);
             }
         });
+
+        // Natural Blinking Logic
+        function blink() {
+            const face = document.getElementById('face');
+            // Don't blink if cuddling or demanding (eyes are already modified) or crying (might look weird)
+            if (!face.classList.contains('cuddling') &&
+                !face.classList.contains('demanding') &&
+                !face.classList.contains('crying') &&
+                !face.classList.contains('jealous')) { // Jealous has squinting, maybe skip blink
+
+                face.classList.add('blinking');
+                setTimeout(() => {
+                    face.classList.remove('blinking');
+                }, 150); // Blink duration
+            }
+
+            // Schedule next blink randomly between 3 and 6 seconds
+            setTimeout(blink, Math.random() * 3000 + 3000);
+        }
+
+        // Start blinking loop
+        setTimeout(blink, 3000);
     </script>
 </body>
 
