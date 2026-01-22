@@ -451,6 +451,114 @@
                 transform: scale(1.02);
             }
         }
+
+        /* Entrance Animation */
+        .face.drop-in {
+            animation: dropIn 1.2s cubic-bezier(0.25, 1.5, 0.5, 1) forwards;
+        }
+
+        @keyframes dropIn {
+            0% {
+                transform: translateY(-120vh) scale(0.5);
+                opacity: 0;
+            }
+
+            60% {
+                transform: translateY(20px) scale(1.1);
+                opacity: 1;
+            }
+
+            80% {
+                transform: translateY(-10px) scale(0.95);
+            }
+
+            100% {
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Vomit/Sick State */
+        .face.vomiting {
+            background-color: #98fb98;
+            /* Pale Green */
+            animation: sick-shake 0.3s infinite;
+        }
+
+        .face.vomiting .eye {
+            height: 15px;
+            width: 70px;
+            margin-top: 20px;
+            transform: rotate(10px) !important;
+        }
+
+        .face.vomiting .mouth {
+            width: 60px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #2e8b57;
+            /* Sea Green */
+            bottom: 25%;
+            border: none;
+            animation: heave 1s infinite;
+        }
+
+        /* Suspicious/Thief State */
+        .face.suspicious {
+            background-color: #f1f1f1;
+        }
+
+        .face.suspicious .eyebrow.left {
+            transform: rotate(-10deg) translateY(-5px);
+            top: 24%;
+        }
+
+        .face.suspicious .eyebrow.right {
+            transform: rotate(-10deg) translateY(5px);
+            top: 26%;
+        }
+
+        .face.suspicious .mouth {
+            width: 50px;
+            height: 5px;
+            border-bottom: none;
+            border-top: 4px solid #8b5a3a;
+            border-radius: 5px;
+            bottom: 28%;
+            transform: rotate(-5deg) translateX(10px);
+        }
+
+        /* Adjust eyes slightly for shifty look */
+        .face.suspicious .eye {
+            height: 70px;
+        }
+
+        @keyframes sick-shake {
+
+            0%,
+            100% {
+                transform: translateX(0) rotate(0deg);
+            }
+
+            25% {
+                transform: translateX(-5px) rotate(-5deg);
+            }
+
+            75% {
+                transform: translateX(5px) rotate(5deg);
+            }
+        }
+
+        @keyframes heave {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+        }
     </style>
 </head>
 
@@ -484,6 +592,20 @@
         let cuddleStartTime = null;
         let sleepTimeout = null;
 
+        // Sneeze Logic Variables
+        let sneezeTimeout = null;
+
+        // Vomit Logic Variables
+        let isVomiting = false;
+        let lastCursorAngle = null;
+        let totalRotation = 0;
+        let spinResetTimeout = null;
+
+        // Suspicious Logic Variables
+        let isPeeking = false;
+        let peekTimeout = null;
+        let suspiciousInterval = null;
+
         // Idle Gaze Variables
         let lastMouseX = window.innerWidth / 2;
         let lastMouseY = window.innerHeight / 2;
@@ -491,10 +613,56 @@
         let gazeInterval = null;
         let isLookingAtUser = false;
 
+        function startPeekingBehavior() {
+            if (suspiciousInterval) return; // Already running
+
+            suspiciousInterval = setInterval(() => {
+                // Randomly peek every 1.5 - 3 seconds
+                if (Math.random() > 0.6) { // 40% chance to peek per interval tick
+                    isPeeking = true;
+                    // Look normal (at cursor) for a split second
+                    moveEyesTo(lastMouseX, lastMouseY);
+
+                    setTimeout(() => {
+                        isPeeking = false;
+                        // Will naturally revert to looking away in next move/idle update or immediately if we call update
+                        const width = window.innerWidth;
+                        const height = window.innerHeight;
+                        // Quick way to force update: trigger look away relative to last mouse pos
+                        const awayX = width - lastMouseX;
+                        moveEyesTo(awayX, lastMouseY); // Look opposite X
+                    }, 400); // Peek duration
+                }
+            }, 1000);
+        }
+
+        function stopPeekingBehavior() {
+            clearInterval(suspiciousInterval);
+            suspiciousInterval = null;
+            isPeeking = false;
+            clearTimeout(peekTimeout);
+        }
+
+        function vomit() {
+            isVomiting = true;
+            face.classList.remove('cuddling', 'angry', 'sad', 'jealous', 'crying', 'demanding', 'sneeze-buildup', 'sneezing', 'sleeping', 'suspicious');
+            face.classList.add('vomiting');
+            stopPeekingBehavior();
+
+            // Recover after 4 seconds
+            setTimeout(() => {
+                isVomiting = false;
+                face.classList.remove('vomiting');
+                totalRotation = 0;
+                lastCursorAngle = null;
+            }, 4000);
+        }
+
         function goToSleep() {
             isSleeping = true;
-            face.classList.remove('cuddling', 'angry', 'sad', 'jealous', 'crying', 'demanding', 'sneeze-buildup', 'sneezing');
+            face.classList.remove('cuddling', 'angry', 'sad', 'jealous', 'crying', 'demanding', 'sneeze-buildup', 'sneezing', 'vomiting', 'suspicious');
             face.classList.add('sleeping');
+            stopPeekingBehavior();
 
             // Wake up after 60 seconds
             setTimeout(wakeUp, 60000);
@@ -507,6 +675,7 @@
         }
 
         function moveEyesTo(targetX, targetY) {
+            if (isSleeping || isVomiting) return;
             const eyes = document.querySelectorAll('.eye');
             eyes.forEach(eye => {
                 const pupil = eye.querySelector('.pupil');
@@ -529,6 +698,7 @@
         // ... (lookAtUser and startIdleBehavior remain same)
 
         function lookAtUser() {
+            if (isSleeping || isVomiting) return;
             const pupils = document.querySelectorAll('.pupil');
             pupils.forEach(pupil => {
                 // Reset to center
@@ -555,8 +725,8 @@
         }
 
         document.addEventListener('mousemove', (e) => {
-            // If sleeping, ignore ALL interaction
-            if (isSleeping) return;
+            // If sleeping or vomiting, ignore ALL interaction
+            if (isSleeping || isVomiting) return;
 
             const x = e.clientX;
             const y = e.clientY;
@@ -572,6 +742,31 @@
             const faceCenterX = faceRect.left + faceRect.width / 2;
             const faceCenterY = faceRect.top + faceRect.height / 2;
 
+            // Rotation Tracking for Vomit
+            const currentAngle = Math.atan2(y - faceCenterY, x - faceCenterX);
+            if (lastCursorAngle !== null) {
+                let delta = currentAngle - lastCursorAngle;
+                // Normalize delta to -PI to PI
+                if (delta > Math.PI) delta -= 2 * Math.PI;
+                if (delta < -Math.PI) delta += 2 * Math.PI;
+
+                totalRotation += delta;
+
+                // Check for 4 full rotations (4 * 2PI) approx 25 radians
+                if (Math.abs(totalRotation) > 25) {
+                    vomit();
+                    return;
+                }
+            }
+            lastCursorAngle = currentAngle;
+
+            // Reset rotation if mouse stops moving for a bit (break in continuity)
+            clearTimeout(spinResetTimeout);
+            spinResetTimeout = setTimeout(() => {
+                totalRotation = 0;
+                lastCursorAngle = null;
+            }, 200);
+
             // Check if cursor is "touching head" (Upper half of face)
             const isOverFace = x >= faceRect.left && x <= faceRect.right &&
                 y >= faceRect.top && y <= faceRect.bottom;
@@ -580,9 +775,10 @@
             isTouchingHead = isOverFace && y < faceCenterY;
 
             // Remove existing classes
-            face.classList.remove('angry', 'sad', 'jealous', 'crying', 'demanding');
+            face.classList.remove('angry', 'sad', 'jealous', 'crying', 'demanding', 'suspicious');
 
             if (isTouchingHead) {
+                stopPeekingBehavior();
                 // Check for Continuous Cuddling -> Sleep
                 if (!cuddleStartTime) {
                     cuddleStartTime = Date.now();
@@ -613,6 +809,7 @@
                 face.classList.remove('cuddling');
 
                 if (y < height * 0.1) {
+                    stopPeekingBehavior();
                     // Top Zone
                     if (x < width * 0.75) {
                         // Left 75% -> Jealous
@@ -622,27 +819,44 @@
                         face.classList.add('crying');
                     }
                 } else if (y > height * 0.8) {
-                    // Bottom Zone -> Sad
-                    face.classList.add('sad');
+                    // Bottom Zone -> Suspicious (formerly Sad)
+                    face.classList.add('suspicious');
+                    startPeekingBehavior();
+                } else {
+                    stopPeekingBehavior();
                 }
                 // Nose/Sneezing Detection (Center of Face)
                 const distToCenter = Math.hypot(x - faceCenterX, y - faceCenterY);
                 if (distToCenter < 40 && !face.classList.contains('sneeze-buildup') && !face.classList.contains('sneezing')) {
-                    // Trigger Sneeze Sequence
-                    face.classList.remove('sad', 'jealous', 'crying', 'demanding', 'cuddling'); // Priority override
-                    face.classList.add('sneeze-buildup');
+                    // Check for Continuous Presence -> Trigger Sneeze
+                    if (!sneezeTimeout) {
+                        sneezeTimeout = setTimeout(() => {
+                            // Trigger Sneeze Sequence
+                            face.classList.remove('sad', 'jealous', 'crying', 'demanding', 'cuddling', 'suspicious');
+                            face.classList.add('sneeze-buildup');
+                            stopPeekingBehavior();
 
-                    setTimeout(() => {
-                        if (face.classList.contains('sneeze-buildup')) {
-                            face.classList.remove('sneeze-buildup');
-                            face.classList.add('sneezing');
-
-                            // Recover after sneeze
                             setTimeout(() => {
-                                face.classList.remove('sneezing');
-                            }, 500);
-                        }
-                    }, 1500); // 1.5s buildup
+                                if (face.classList.contains('sneeze-buildup')) {
+                                    face.classList.remove('sneeze-buildup');
+                                    face.classList.add('sneezing');
+
+                                    // Recover after sneeze
+                                    setTimeout(() => {
+                                        face.classList.remove('sneezing');
+                                    }, 500);
+                                }
+                            }, 1500); // 1.5s buildup
+
+                            sneezeTimeout = null; // Reset timeout
+                        }, 2000); // 2s delay before sneeze starts
+                    }
+                } else {
+                    // Left nose area - Clear timeout
+                    if (sneezeTimeout) {
+                        clearTimeout(sneezeTimeout);
+                        sneezeTimeout = null;
+                    }
                 }
 
                 // Else: Neutral or just following eyes
@@ -656,13 +870,21 @@
             isLookingAtUser = false;
 
             // 2. Start new idle timer
-            idleTimer = setTimeout(startIdleBehavior, 1500); // Wait 1.5s after stop before starting idle behavior
+            if (!face.classList.contains('suspicious')) {
+                idleTimer = setTimeout(startIdleBehavior, 1500); // Wait 1.5s after stop before starting idle behavior
+            }
 
             // 3. Move eyes to cursor immediately (unless cuddling or sneezing)
             if (!face.classList.contains('cuddling') &&
                 !face.classList.contains('sneeze-buildup') &&
                 !face.classList.contains('sneezing')) {
-                moveEyesTo(x, y);
+
+                if (face.classList.contains('suspicious') && !isPeeking) {
+                    // Look away
+                    moveEyesTo(width - x, y);
+                } else {
+                    moveEyesTo(x, y);
+                }
             }
         });
 
@@ -676,7 +898,8 @@
                 !face.classList.contains('jealous') &&
                 !face.classList.contains('sneeze-buildup') &&
                 !face.classList.contains('sneezing') &&
-                !face.classList.contains('sleeping')) { // Jealous has squinting, maybe skip blink
+                !face.classList.contains('sleeping') &&
+                !face.classList.contains('vomiting')) { // Jealous has squinting, maybe skip blink
 
                 face.classList.add('blinking');
                 setTimeout(() => {
@@ -690,6 +913,17 @@
 
         // Start blinking loop
         setTimeout(blink, 3000);
+
+        // Entrance Animation Trigger
+        document.addEventListener('DOMContentLoaded', () => {
+            const face = document.getElementById('face');
+            face.classList.add('drop-in');
+
+            // Remove class after animation to avoid conflict with other transform animations
+            setTimeout(() => {
+                face.classList.remove('drop-in');
+            }, 1200);
+        });
     </script>
 </body>
 
