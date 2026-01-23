@@ -492,8 +492,12 @@
             animation: none;
         }
 
-        .face.vomiting .pupil {
+        .face.vomiting .eye:first-child .pupil {
             animation: eye-roll 0.5s linear infinite;
+        }
+
+        .face.vomiting .eye:last-child .pupil {
+            animation: eye-roll-ccw 0.5s linear infinite;
         }
 
         .face.vomiting .mouth {
@@ -615,6 +619,16 @@
             }
         }
 
+        @keyframes eye-roll-ccw {
+            from {
+                transform: translate(-50%, -50%) rotate(0deg) translateX(25px) rotate(0deg);
+            }
+
+            to {
+                transform: translate(-50%, -50%) rotate(-360deg) translateX(25px) rotate(360deg);
+            }
+        }
+
         @keyframes spin {
             0% {
                 transform: rotate(0deg);
@@ -622,6 +636,117 @@
 
             100% {
                 transform: rotate(360deg);
+            }
+        }
+
+        /* Demanding / Begging State */
+        .face.demanding {
+            animation: begging 0.4s infinite alternate;
+            /* Bounce/Nudge */
+        }
+
+        .face.demanding .eyebrow {
+            top: 20%;
+            border-radius: 50%;
+        }
+
+        .face.demanding .eyebrow.left {
+            transform: rotate(-25deg);
+        }
+
+        .face.demanding .eyebrow.right {
+            transform: rotate(25deg);
+        }
+
+        .face.demanding .eye {
+            height: 90px;
+            /* Big Eyes */
+            width: 90px;
+        }
+
+        .face.demanding .pupil {
+            transform: translate(-50%, -50%) scale(1.3);
+            /* Big Pupils */
+        }
+
+        .face.demanding .mouth {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 3px solid #8b5a3a;
+            background: transparent;
+            bottom: 25%;
+        }
+
+        @keyframes begging {
+            from {
+                transform: translateY(0);
+            }
+
+            to {
+                transform: translateY(-10px) rotate(2deg);
+            }
+
+            /* Nudge up and tilt */
+        }
+
+        /* Sneeze Text */
+        .sneeze-text {
+            position: absolute;
+            top: 20%;
+            left: 80%;
+            /* To the side */
+            font-family: 'Comic Sans MS', sans-serif;
+            font-weight: bold;
+            font-size: 24px;
+            color: #5d4037;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 10px;
+            border: 2px solid #5d4037;
+            opacity: 0;
+            transform: scale(0.5) rotate(-10deg);
+            pointer-events: none;
+            transition: all 0.2s;
+            z-index: 20;
+        }
+
+        .sneeze-text.show {
+            opacity: 1;
+            transform: scale(1.2) rotate(10deg) translateX(20px);
+        }
+
+        /* Upset State (Post-Vomit) */
+        .face.upset {
+            background-color: #e0f0e0;
+            /* Slightly sickly pale */
+        }
+
+        .face.upset .mouth {
+            width: 50px;
+            height: 20px;
+            border-top: 3px solid #8b5a3a;
+            border-bottom: none;
+            border-radius: 50% 50% 0 0;
+            bottom: 25%;
+            animation: quiver 0.5s infinite;
+        }
+
+        @keyframes quiver {
+            0% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-2px) rotate(-1deg);
+            }
+
+            75% {
+                transform: translateX(2px) rotate(1deg);
+            }
+
+            100% {
+                transform: translateX(0);
             }
         }
 
@@ -667,6 +792,7 @@
     <div class="face" id="face">
         <div id="zzz-container" class="zzz-container"></div>
         <div id="vomit-container" class="vomit-container"></div>
+        <div id="sneeze-text" class="sneeze-text">Hachzzz</div>
         <div class="eyebrow left"></div>
         <div class="eyebrow right"></div>
         <div class="eyes-container">
@@ -714,12 +840,37 @@
         // Vomit Particle Variables
         let vomitInterval = null;
 
+        // Upset State Variables
+        let isUpset = false;
+        let upsetTimeout = null;
+        let upsetCureTimeout = null;
+
         // Idle Gaze Variables
         let lastMouseX = window.innerWidth / 2;
         let lastMouseY = window.innerHeight / 2;
         let idleTimer = null;
         let gazeInterval = null;
         let isLookingAtUser = false;
+
+        function startUpsetState() {
+            isUpset = true;
+            face.classList.add('upset');
+
+            // Auto-recover after 1 minute
+            upsetTimeout = setTimeout(() => {
+                stopUpsetState();
+            }, 60000);
+        }
+
+        function stopUpsetState() {
+            if (!isUpset) return;
+            isUpset = false;
+            face.classList.remove('upset');
+            if (upsetTimeout) {
+                clearTimeout(upsetTimeout);
+                upsetTimeout = null;
+            }
+        }
 
         function startVomitParticles() {
             if (vomitInterval) return;
@@ -876,6 +1027,9 @@
                 stopVomitParticles();
                 totalRotation = 0;
                 lastCursorAngle = null;
+
+                // Become upset
+                startUpsetState();
             }, 4000);
         }
 
@@ -999,13 +1153,30 @@
 
             // Remove existing classes
             face.classList.remove('angry', 'sad', 'jealous', 'crying', 'demanding', 'suspicious');
+            // Note: 'upset' class handling needs care. We probably don't want to remove it blindly if we are upset?
+            // Actually, let's allow other states (like Cuddling) to override it visually, but if we stop cuddling, we revert to upset.
+
+            if (isUpset) {
+                // Re-add upset class by default if active
+                face.classList.add('upset');
+            }
 
             if (isTouchingHead) {
                 stopPeekingBehavior();
+                // Cure Upset State - Require 1 second of continuous cuddling
+                if (isUpset) {
+                    if (!upsetCureTimeout) {
+                        upsetCureTimeout = setTimeout(() => {
+                            stopUpsetState();
+                            upsetCureTimeout = null;
+                        }, 1000); // 1 second required
+                    }
+                }
+
                 // Check for Continuous Cuddling -> Sleep
                 if (!cuddleStartTime) {
                     cuddleStartTime = Date.now();
-                } else if (Date.now() - cuddleStartTime > 5000) { // 5 seconds of continuous cuddling
+                } else if (Date.now() - cuddleStartTime > 20000) { // 20 seconds of continuous cuddling
                     goToSleep();
                     return; // Stop processing other logic
                 }
@@ -1026,6 +1197,12 @@
             } else {
                 // RESET continuous cuddle timer if stopped touching head
                 cuddleStartTime = null;
+
+                // Reset upset cure timer if we stop touching head too soon
+                if (upsetCureTimeout) {
+                    clearTimeout(upsetCureTimeout);
+                    upsetCureTimeout = null;
+                }
 
                 // Not touching head - Clear timeout and remove cuddling
                 clearTimeout(cuddleTimeout);
@@ -1064,9 +1241,14 @@
                                     face.classList.remove('sneeze-buildup');
                                     face.classList.add('sneezing');
 
+                                    // Show "Hachzzz" text
+                                    const text = document.getElementById('sneeze-text');
+                                    text.classList.add('show');
+
                                     // Recover after sneeze
                                     setTimeout(() => {
                                         face.classList.remove('sneezing');
+                                        text.classList.remove('show'); // Hide text
                                     }, 500);
                                 }
                             }, 1500); // 1.5s buildup
