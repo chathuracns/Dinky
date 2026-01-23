@@ -485,10 +485,15 @@
         }
 
         .face.vomiting .eye {
-            height: 15px;
-            width: 70px;
-            margin-top: 20px;
-            transform: rotate(10px) !important;
+            /* Open eyes for rolling pupil effect */
+            height: 80px;
+            width: 80px;
+            margin-top: 0;
+            animation: none;
+        }
+
+        .face.vomiting .pupil {
+            animation: eye-roll 0.5s linear infinite;
         }
 
         .face.vomiting .mouth {
@@ -563,12 +568,105 @@
                 transform: scale(1.2);
             }
         }
+
+        /* Zzz Animation */
+        .zzz-container {
+            position: absolute;
+            top: 20px;
+            right: 60px;
+            width: 50px;
+            height: 100px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .zzz {
+            position: absolute;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+            font-weight: bold;
+            color: #4a4a4a;
+            opacity: 0;
+            animation: floatZ 2.5s linear forwards;
+        }
+
+        @keyframes floatZ {
+            0% {
+                transform: translateY(0) translateX(0) scale(0.5);
+                opacity: 0;
+            }
+
+            15% {
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: translateY(-80px) translateX(30px) scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        @keyframes eye-roll {
+            from {
+                transform: translate(-50%, -50%) rotate(0deg) translateX(25px) rotate(0deg);
+            }
+
+            to {
+                transform: translate(-50%, -50%) rotate(360deg) translateX(25px) rotate(-360deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Vomit Particles */
+        .vomit-container {
+            position: absolute;
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            /* Small origin point */
+            height: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .vomit-particle {
+            position: absolute;
+            background-color: #32cd32;
+            /* Lime Green */
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: spew 0.8s ease-out forwards;
+        }
+
+        @keyframes spew {
+            0% {
+                transform: translate(-50%, 0) scale(0.5);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(calc(-50% + var(--vx)), 150px) scale(1.5);
+                /* Fall down */
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 
 <body>
 
     <div class="face" id="face">
+        <div id="zzz-container" class="zzz-container"></div>
+        <div id="vomit-container" class="vomit-container"></div>
         <div class="eyebrow left"></div>
         <div class="eyebrow right"></div>
         <div class="eyes-container">
@@ -610,12 +708,116 @@
         let peekTimeout = null;
         let suspiciousInterval = null;
 
+        // Zzz Logic Variables
+        let zzzInterval = null;
+
+        // Vomit Particle Variables
+        let vomitInterval = null;
+
         // Idle Gaze Variables
         let lastMouseX = window.innerWidth / 2;
         let lastMouseY = window.innerHeight / 2;
         let idleTimer = null;
         let gazeInterval = null;
         let isLookingAtUser = false;
+
+        function startVomitParticles() {
+            if (vomitInterval) return;
+
+            const container = document.getElementById('vomit-container');
+
+            // Violent Burst
+            vomitInterval = setInterval(() => {
+                createVomitParticle(container);
+                if (Math.random() > 0.5) createVomitParticle(container); // Double density sometimes
+            }, 10); // Very fast generation
+
+            // Stop generating after 0.8 seconds (Burst over)
+            setTimeout(() => {
+                if (vomitInterval) {
+                    clearInterval(vomitInterval);
+                    vomitInterval = null;
+                }
+            }, 800);
+        }
+
+        function createVomitParticle(container) {
+            const p = document.createElement('div');
+            p.classList.add('vomit-particle');
+
+            // Random properties - liquid sizes
+            const size = 4 + Math.random() * 8;
+            p.style.width = `${size}px`;
+            p.style.height = `${size}px`;
+
+            // Organic shape (blobby)
+            const r1 = 40 + Math.random() * 60;
+            const r2 = 40 + Math.random() * 60;
+            const r3 = 40 + Math.random() * 60;
+            const r4 = 40 + Math.random() * 60;
+            p.style.borderRadius = `${r1}% ${r2}% ${r3}% ${r4}%`;
+
+            // Random horizontal velocity for spew effect - tighter stream
+            const vx = (Math.random() - 0.5) * 40; // -20px to +20px spread
+            p.style.setProperty('--vx', `${vx}px`);
+
+            // Random color variation
+            const rand = Math.random();
+            if (rand > 0.8) p.style.backgroundColor = '#98fb98'; // Lighter chunks
+            else if (rand > 0.6) p.style.backgroundColor = '#228b22'; // Darker chunks
+
+            container.appendChild(p);
+
+            // Cleanup
+            setTimeout(() => {
+                p.remove();
+            }, 800);
+        }
+
+        function stopVomitParticles() {
+            clearInterval(vomitInterval);
+            vomitInterval = null;
+            const container = document.getElementById('vomit-container');
+            container.innerHTML = '';
+        }
+
+        function startZzzBehavior() {
+            if (zzzInterval) return;
+
+            const container = document.getElementById('zzz-container');
+
+            // Create initial Z immediately
+            createZzz(container);
+
+            zzzInterval = setInterval(() => {
+                createZzz(container);
+            }, 800); // New Z every 0.8s
+        }
+
+        function createZzz(container) {
+            const z = document.createElement('div');
+            z.classList.add('zzz');
+            z.innerText = 'Z';
+
+            // Randomize look
+            const size = 20 + Math.random() * 20;
+            z.style.fontSize = `${size}px`;
+            z.style.left = `${Math.random() * 40 - 10}px`;
+
+            container.appendChild(z);
+
+            // Cleanup
+            setTimeout(() => {
+                z.remove();
+            }, 2500);
+        }
+
+        function stopZzzBehavior() {
+            clearInterval(zzzInterval);
+            zzzInterval = null;
+            const container = document.getElementById('zzz-container');
+            container.innerHTML = ''; // Clear existing Zzzs
+        }
 
         function startPeekingBehavior() {
             if (suspiciousInterval) return; // Already running
@@ -664,11 +866,14 @@
             face.classList.remove('cuddling', 'angry', 'sad', 'jealous', 'crying', 'demanding', 'sneeze-buildup', 'sneezing', 'sleeping', 'suspicious');
             face.classList.add('vomiting');
             stopPeekingBehavior();
+            stopZzzBehavior();
+            startVomitParticles();
 
             // Recover after 4 seconds
             setTimeout(() => {
                 isVomiting = false;
                 face.classList.remove('vomiting');
+                stopVomitParticles();
                 totalRotation = 0;
                 lastCursorAngle = null;
             }, 4000);
@@ -679,6 +884,7 @@
             face.classList.remove('cuddling', 'angry', 'sad', 'jealous', 'crying', 'demanding', 'sneeze-buildup', 'sneezing', 'vomiting', 'suspicious');
             face.classList.add('sleeping');
             stopPeekingBehavior();
+            startZzzBehavior();
 
             // Wake up after 60 seconds
             setTimeout(wakeUp, 60000);
@@ -688,6 +894,7 @@
             isSleeping = false;
             face.classList.remove('sleeping');
             cuddleStartTime = null;
+            stopZzzBehavior();
         }
 
         function moveEyesTo(targetX, targetY) {
