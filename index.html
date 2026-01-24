@@ -639,61 +639,44 @@
             }
         }
 
-        /* Waving State */
-        .face.waving {
-            background-color: #fff4e6;
-            animation: wave-tilt 0.6s ease-in-out infinite alternate;
+        /* Searching State (Telescopic Eye) */
+        .face.searching {
+            background-color: #f5f5f5;
+            animation: search-tilt 1.5s ease-in-out infinite;
         }
 
-        .face.waving .eyebrow {
-            top: 22%;
+        .face.searching .eyebrow {
+            top: 24%;
         }
 
-        .face.waving .eyebrow.left {
-            transform: rotate(-5deg);
+        .face.searching .eyebrow.left {
+            transform: rotate(-15deg);
         }
 
-        .face.waving .eyebrow.right {
-            transform: rotate(5deg);
+        .face.searching .eyebrow.right {
+            transform: rotate(15deg);
         }
 
-        .face.waving .mouth {
-            width: 120px;
+        .face.searching .eye.left {
+            height: 70px;
+            width: 70px;
+        }
+
+        .face.searching .eye.right {
+            opacity: 0.3;
             height: 60px;
-            border-bottom: 6px solid #d45d79;
-            border-radius: 0 0 60px 60px;
+        }
+
+        .face.searching .mouth {
+            width: 30px;
+            height: 15px;
+            border-radius: 50%;
+            border: 3px solid #8b5a3a;
+            background-color: transparent;
             bottom: 28%;
         }
 
-        @keyframes wave-tilt {
-            0% {
-                transform: rotate(-3deg);
-            }
-
-            100% {
-                transform: rotate(3deg);
-            }
-        }
-
-        /* Waving Hand */
-        .hand {
-            position: absolute;
-            bottom: 10%;
-            right: -80px;
-            font-size: 60px;
-            opacity: 0;
-            transform: rotate(0deg);
-            pointer-events: none;
-            z-index: 5;
-            transition: opacity 0.3s;
-        }
-
-        .hand.waving {
-            opacity: 1;
-            animation: wave-hand 0.6s ease-in-out infinite;
-        }
-
-        @keyframes wave-hand {
+        @keyframes search-tilt {
 
             0%,
             100% {
@@ -701,13 +684,93 @@
             }
 
             25% {
-                transform: rotate(20deg);
+                transform: rotate(-8deg) translateX(-5px);
             }
 
             75% {
-                transform: rotate(-20deg);
+                transform: rotate(8deg) translateX(5px);
             }
         }
+
+        /* Telescopic Eye */
+        .telescope {
+            position: absolute;
+            left: -100px;
+            top: 35%;
+            opacity: 0;
+            transform: scale(0.5) rotate(-20deg);
+            pointer-events: none;
+            z-index: 15;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .telescope.active {
+            opacity: 1;
+            left: 20px;
+            transform: scale(1) rotate(0deg);
+            animation: telescope-search 3s ease-in-out infinite;
+        }
+
+        .telescope-body {
+            width: 80px;
+            height: 35px;
+            background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+            border-radius: 5px 15px 15px 5px;
+            position: relative;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .telescope-lens {
+            width: 45px;
+            height: 45px;
+            background: radial-gradient(circle, #87ceeb 0%, #4682b4 50%, #1e3a5f 100%);
+            border-radius: 50%;
+            position: absolute;
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 4px solid #333;
+            box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.3), 0 0 10px rgba(70, 130, 180, 0.5);
+        }
+
+        .telescope-lens::after {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            top: 8px;
+            left: 10px;
+            filter: blur(2px);
+        }
+
+        .telescope-handle {
+            width: 25px;
+            height: 12px;
+            background: #3a3a3a;
+            border-radius: 3px;
+            position: absolute;
+            bottom: -8px;
+            left: 20px;
+        }
+
+        @keyframes telescope-search {
+
+            0%,
+            100% {
+                transform: scale(1) rotate(-5deg);
+            }
+
+            33% {
+                transform: scale(1.05) rotate(5deg);
+            }
+
+            66% {
+                transform: scale(1.05) rotate(-3deg);
+            }
+        }
+
 
         /* Demanding / Begging State */
         .face.demanding {
@@ -863,7 +926,12 @@
         <div id="zzz-container" class="zzz-container"></div>
         <div id="vomit-container" class="vomit-container"></div>
         <div id="sneeze-text" class="sneeze-text">Hachzzz</div>
-        <div id="hand" class="hand">👋</div>
+        <div id="telescope" class="telescope">
+            <div class="telescope-body">
+                <div class="telescope-lens"></div>
+                <div class="telescope-handle"></div>
+            </div>
+        </div>
         <div class="eyebrow left"></div>
         <div class="eyebrow right"></div>
         <div class="eyes-container">
@@ -923,10 +991,11 @@
         let gazeInterval = null;
         let isLookingAtUser = false;
 
-        // Waving Variables
-        let isWaving = false;
-        let waveTimeout = null;
+        // Searching Variables
+        let isSearching = false;
+        let searchTimeout = null;
         let lastMoveTime = Date.now();
+        let searchLookInterval = null;
 
         function startUpsetState() {
             isUpset = true;
@@ -1177,22 +1246,57 @@
             }, 2000); // Switch every 2 seconds
         }
 
-        function startWaving() {
-            if (isWaving || isSleeping || isVomiting) return;
-            isWaving = true;
+        function startSearching() {
+            if (isSearching || isSleeping || isVomiting) return;
+            isSearching = true;
             face.classList.remove('angry', 'sad', 'jealous', 'crying', 'demanding', 'suspicious', 'cuddling', 'upset');
-            face.classList.add('waving');
-            const hand = document.getElementById('hand');
-            hand.classList.add('waving');
-            lookAtUser(); // Look at user while waving
+            face.classList.add('searching');
+            const telescope = document.getElementById('telescope');
+            telescope.classList.add('active');
+
+            // Make the left eye look around through the telescope
+            let searchAngle = 0;
+            searchLookInterval = setInterval(() => {
+                searchAngle += 0.5;
+                const radius = 80;
+                const searchX = window.innerWidth / 2 + Math.cos(searchAngle) * radius;
+                const searchY = window.innerHeight / 2 + Math.sin(searchAngle) * radius;
+
+                // Only move the left eye (the one with telescope)
+                const leftEye = document.querySelector('.eye');
+                const pupil = leftEye.querySelector('.pupil');
+                const rect = leftEye.getBoundingClientRect();
+                const eyeCenterX = rect.left + rect.width / 2;
+                const eyeCenterY = rect.top + rect.height / 2;
+
+                const angle = Math.atan2(searchY - eyeCenterY, searchX - eyeCenterX);
+                const maxDistance = (rect.width - pupil.offsetWidth) / 2;
+                const moveRadius = maxDistance * 0.8;
+
+                const moveX = Math.cos(angle) * moveRadius;
+                const moveY = Math.sin(angle) * moveRadius;
+
+                pupil.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+            }, 50);
         }
 
-        function stopWaving() {
-            if (!isWaving) return;
-            isWaving = false;
-            face.classList.remove('waving');
-            const hand = document.getElementById('hand');
-            hand.classList.remove('waving');
+        function stopSearching() {
+            if (!isSearching) return;
+            isSearching = false;
+            face.classList.remove('searching');
+            const telescope = document.getElementById('telescope');
+            telescope.classList.remove('active');
+
+            if (searchLookInterval) {
+                clearInterval(searchLookInterval);
+                searchLookInterval = null;
+            }
+
+            // Reset both eyes
+            const pupils = document.querySelectorAll('.pupil');
+            pupils.forEach(pupil => {
+                pupil.style.transform = 'translate(-50%, -50%)';
+            });
         }
 
         document.addEventListener('mousemove', (e) => {
@@ -1207,16 +1311,16 @@
             lastMouseY = y;
             lastMoveTime = Date.now();
 
-            // Stop waving when cursor moves
-            if (isWaving) {
-                stopWaving();
+            // Stop searching when cursor moves
+            if (isSearching) {
+                stopSearching();
             }
 
-            // Reset wave timeout
-            clearTimeout(waveTimeout);
-            waveTimeout = setTimeout(() => {
-                startWaving();
-            }, 5000); // Start waving after 5 seconds of no movement
+            // Reset search timeout
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                startSearching();
+            }, 5000); // Start searching after 5 seconds of no movement
 
             const width = window.innerWidth;
             const height = window.innerHeight;
