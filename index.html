@@ -639,6 +639,76 @@
             }
         }
 
+        /* Waving State */
+        .face.waving {
+            background-color: #fff4e6;
+            animation: wave-tilt 0.6s ease-in-out infinite alternate;
+        }
+
+        .face.waving .eyebrow {
+            top: 22%;
+        }
+
+        .face.waving .eyebrow.left {
+            transform: rotate(-5deg);
+        }
+
+        .face.waving .eyebrow.right {
+            transform: rotate(5deg);
+        }
+
+        .face.waving .mouth {
+            width: 120px;
+            height: 60px;
+            border-bottom: 6px solid #d45d79;
+            border-radius: 0 0 60px 60px;
+            bottom: 28%;
+        }
+
+        @keyframes wave-tilt {
+            0% {
+                transform: rotate(-3deg);
+            }
+
+            100% {
+                transform: rotate(3deg);
+            }
+        }
+
+        /* Waving Hand */
+        .hand {
+            position: absolute;
+            bottom: 10%;
+            right: -80px;
+            font-size: 60px;
+            opacity: 0;
+            transform: rotate(0deg);
+            pointer-events: none;
+            z-index: 5;
+            transition: opacity 0.3s;
+        }
+
+        .hand.waving {
+            opacity: 1;
+            animation: wave-hand 0.6s ease-in-out infinite;
+        }
+
+        @keyframes wave-hand {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(20deg);
+            }
+
+            75% {
+                transform: rotate(-20deg);
+            }
+        }
+
         /* Demanding / Begging State */
         .face.demanding {
             animation: begging 0.4s infinite alternate;
@@ -793,6 +863,7 @@
         <div id="zzz-container" class="zzz-container"></div>
         <div id="vomit-container" class="vomit-container"></div>
         <div id="sneeze-text" class="sneeze-text">Hachzzz</div>
+        <div id="hand" class="hand">👋</div>
         <div class="eyebrow left"></div>
         <div class="eyebrow right"></div>
         <div class="eyes-container">
@@ -851,6 +922,11 @@
         let idleTimer = null;
         let gazeInterval = null;
         let isLookingAtUser = false;
+
+        // Waving Variables
+        let isWaving = false;
+        let waveTimeout = null;
+        let lastMoveTime = Date.now();
 
         function startUpsetState() {
             isUpset = true;
@@ -1101,6 +1177,24 @@
             }, 2000); // Switch every 2 seconds
         }
 
+        function startWaving() {
+            if (isWaving || isSleeping || isVomiting) return;
+            isWaving = true;
+            face.classList.remove('angry', 'sad', 'jealous', 'crying', 'demanding', 'suspicious', 'cuddling', 'upset');
+            face.classList.add('waving');
+            const hand = document.getElementById('hand');
+            hand.classList.add('waving');
+            lookAtUser(); // Look at user while waving
+        }
+
+        function stopWaving() {
+            if (!isWaving) return;
+            isWaving = false;
+            face.classList.remove('waving');
+            const hand = document.getElementById('hand');
+            hand.classList.remove('waving');
+        }
+
         document.addEventListener('mousemove', (e) => {
             // If sleeping or vomiting, ignore ALL interaction
             if (isSleeping || isVomiting) return;
@@ -1111,6 +1205,18 @@
             // Store last position for idle gaze
             lastMouseX = x;
             lastMouseY = y;
+            lastMoveTime = Date.now();
+
+            // Stop waving when cursor moves
+            if (isWaving) {
+                stopWaving();
+            }
+
+            // Reset wave timeout
+            clearTimeout(waveTimeout);
+            waveTimeout = setTimeout(() => {
+                startWaving();
+            }, 5000); // Start waving after 5 seconds of no movement
 
             const width = window.innerWidth;
             const height = window.innerHeight;
