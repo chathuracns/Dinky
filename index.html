@@ -513,25 +513,49 @@
         }
 
         .face.vomiting .mouth {
-            width: 50px;
-            height: 25px;
+            width: 60px;
+            height: 8px;
             border: none;
-            border-top: 4px solid #6b8e23;
-            border-radius: 50% 50% 0 0;
-            background-color: transparent;
-            bottom: 25%;
-            animation: queasy-mouth 0.5s infinite;
+            background: linear-gradient(to right,
+                    transparent 0%,
+                    #6b8e23 5%,
+                    #6b8e23 95%,
+                    transparent 100%);
+            bottom: 28%;
+            left: 50%;
+            transform: translateX(-50%);
+            position: absolute;
+            clip-path: polygon(0% 50%,
+                    10% 20%,
+                    20% 50%,
+                    30% 80%,
+                    40% 50%,
+                    50% 20%,
+                    60% 50%,
+                    70% 80%,
+                    80% 50%,
+                    90% 20%,
+                    100% 50%,
+                    90% 50%,
+                    80% 50%,
+                    70% 50%,
+                    60% 50%,
+                    50% 50%,
+                    40% 50%,
+                    30% 50%,
+                    20% 50%,
+                    10% 50%);
         }
 
         @keyframes queasy-mouth {
 
             0%,
             100% {
-                transform: translateX(0) scaleX(1);
+                transform: translateX(-50%) scaleX(1);
             }
 
             50% {
-                transform: translateX(-3px) scaleX(0.9);
+                transform: translateX(-50%) scaleX(0.95);
             }
         }
 
@@ -1362,7 +1386,7 @@
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 startSearching();
-            }, 5000); // Start searching after 5 seconds of no movement
+            }, 60000); // Start searching after 1 minute of no movement
 
             const width = window.innerWidth;
             const height = window.innerHeight;
