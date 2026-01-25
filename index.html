@@ -609,6 +609,42 @@
             }
         }
 
+        /* Question Mark Animation (for searching) */
+        .question-container {
+            position: absolute;
+            top: 20px;
+            right: 60px;
+            width: 50px;
+            height: 100px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .question {
+            position: absolute;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+            font-weight: bold;
+            color: #5a5a5a;
+            opacity: 0;
+            animation: floatQuestion 2.5s linear forwards;
+        }
+
+        @keyframes floatQuestion {
+            0% {
+                transform: translateY(0) translateX(0) scale(0.5);
+                opacity: 0;
+            }
+
+            15% {
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: translateY(-80px) translateX(30px) scale(1.5);
+                opacity: 0;
+            }
+        }
+
         @keyframes eye-roll {
             from {
                 transform: translate(-50%, -50%) rotate(0deg) translateX(25px) rotate(0deg);
@@ -728,29 +764,6 @@
             left: 0;
         }
 
-        .magnifier-handle {
-            width: 50px;
-            height: 12px;
-            background: linear-gradient(90deg, #3a3a3a 0%, #2a2a2a 100%);
-            border-radius: 6px;
-            position: absolute;
-            bottom: -25px;
-            right: -15px;
-            transform: rotate(-45deg);
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-        }
-
-        .magnifier-handle::after {
-            content: '';
-            position: absolute;
-            width: 15px;
-            height: 15px;
-            background: #4a4a4a;
-            border-radius: 50%;
-            right: -5px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
 
 
         /* Demanding / Begging State */
@@ -905,13 +918,13 @@
 
     <div class="face" id="face">
         <div id="zzz-container" class="zzz-container"></div>
+        <div id="question-container" class="question-container"></div>
         <div id="vomit-container" class="vomit-container"></div>
         <div id="sneeze-text" class="sneeze-text">Hachzzz</div>
         <div id="magnifier" class="magnifier">
             <div class="magnifier-rim">
                 <div class="magnifier-glass"></div>
             </div>
-            <div class="magnifier-handle"></div>
         </div>
         <div class="eyebrow left"></div>
         <div class="eyebrow right"></div>
@@ -1096,6 +1109,47 @@
             container.innerHTML = ''; // Clear existing Zzzs
         }
 
+        // Question Mark Behavior (for searching)
+        let questionInterval = null;
+
+        function startQuestionBehavior() {
+            if (questionInterval) return;
+
+            const container = document.getElementById('question-container');
+
+            // Create initial ? immediately
+            createQuestion(container);
+
+            questionInterval = setInterval(() => {
+                createQuestion(container);
+            }, 800); // New ? every 0.8s
+        }
+
+        function createQuestion(container) {
+            const q = document.createElement('div');
+            q.classList.add('question');
+            q.innerText = '?';
+
+            // Randomize look
+            const size = 20 + Math.random() * 20;
+            q.style.fontSize = `${size}px`;
+            q.style.left = `${Math.random() * 40 - 10}px`;
+
+            container.appendChild(q);
+
+            // Cleanup
+            setTimeout(() => {
+                q.remove();
+            }, 2500);
+        }
+
+        function stopQuestionBehavior() {
+            clearInterval(questionInterval);
+            questionInterval = null;
+            const container = document.getElementById('question-container');
+            container.innerHTML = ''; // Clear existing question marks
+        }
+
         function startPeekingBehavior() {
             if (suspiciousInterval) return; // Already running
 
@@ -1235,6 +1289,9 @@
             const magnifier = document.getElementById('magnifier');
             magnifier.classList.add('active');
 
+            // Start question mark animation
+            startQuestionBehavior();
+
             // Keep eyes looking straight forward like monocle emoji 🧐
             lookAtUser();
         }
@@ -1245,6 +1302,9 @@
             face.classList.remove('searching');
             const magnifier = document.getElementById('magnifier');
             magnifier.classList.remove('active');
+
+            // Stop question mark animation
+            stopQuestionBehavior();
 
             if (searchLookInterval) {
                 clearInterval(searchLookInterval);
