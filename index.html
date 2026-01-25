@@ -641,8 +641,7 @@
 
         /* Searching State (Telescopic Eye) */
         .face.searching {
-            background-color: #f5f5f5;
-            animation: search-tilt 1.5s ease-in-out infinite;
+            background-color: #fef9f3;
         }
 
         .face.searching .eyebrow {
@@ -650,125 +649,107 @@
         }
 
         .face.searching .eyebrow.left {
-            transform: rotate(-15deg);
+            transform: rotate(-25deg) translateY(-8px);
+            top: 20%;
         }
 
         .face.searching .eyebrow.right {
-            transform: rotate(15deg);
+            transform: rotate(0deg);
+            top: 24%;
         }
 
-        .face.searching .eye.left {
-            height: 70px;
-            width: 70px;
+        .face.searching .eyes-container .eye:first-child {
+            height: 95px;
+            width: 95px;
+            transform: scale(1.2);
         }
 
-        .face.searching .eye.right {
-            opacity: 0.3;
-            height: 60px;
+        .face.searching .eyes-container .eye:first-child .pupil {
+            width: 40px;
+            height: 40px;
+        }
+
+        .face.searching .eyes-container .eye:last-child {
+            height: 75px;
+            width: 75px;
         }
 
         .face.searching .mouth {
-            width: 30px;
-            height: 15px;
+            width: 35px;
+            height: 18px;
             border-radius: 50%;
             border: 3px solid #8b5a3a;
             background-color: transparent;
             bottom: 28%;
         }
 
-        @keyframes search-tilt {
-
-            0%,
-            100% {
-                transform: rotate(0deg);
-            }
-
-            25% {
-                transform: rotate(-8deg) translateX(-5px);
-            }
-
-            75% {
-                transform: rotate(8deg) translateX(5px);
-            }
-        }
-
-        /* Telescopic Eye */
-        .telescope {
+        /* Magnifying Glass Lens */
+        .magnifier {
             position: absolute;
-            left: -100px;
-            top: 35%;
+            left: -150px;
+            top: 32%;
             opacity: 0;
-            transform: scale(0.5) rotate(-20deg);
+            transform: scale(0.3) rotate(-30deg);
             pointer-events: none;
             z-index: 15;
-            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
 
-        .telescope.active {
+        .magnifier.active {
             opacity: 1;
-            left: 20px;
+            left: 35px;
             transform: scale(1) rotate(0deg);
-            animation: telescope-search 3s ease-in-out infinite;
         }
 
-        .telescope-body {
-            width: 80px;
-            height: 35px;
-            background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
-            border-radius: 5px 15px 15px 5px;
-            position: relative;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
-        }
-
-        .telescope-lens {
-            width: 45px;
-            height: 45px;
-            background: radial-gradient(circle, #87ceeb 0%, #4682b4 50%, #1e3a5f 100%);
+        .magnifier-rim {
+            width: 110px;
+            height: 110px;
+            border: 8px solid #2a2a2a;
             border-radius: 50%;
-            position: absolute;
-            right: -5px;
-            top: 50%;
-            transform: translateY(-50%);
-            border: 4px solid #333;
-            box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.3), 0 0 10px rgba(70, 130, 180, 0.5);
+            position: relative;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            box-shadow:
+                0 4px 15px rgba(0, 0, 0, 0.4),
+                inset 0 2px 5px rgba(255, 255, 255, 0.2),
+                inset 0 -2px 5px rgba(0, 0, 0, 0.3);
         }
 
-        .telescope-lens::after {
+        .magnifier-glass {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%,
+                    rgba(255, 255, 255, 0.3) 0%,
+                    rgba(255, 255, 255, 0.1) 30%,
+                    rgba(135, 206, 235, 0.15) 60%,
+                    transparent 100%);
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .magnifier-handle {
+            width: 50px;
+            height: 12px;
+            background: linear-gradient(90deg, #3a3a3a 0%, #2a2a2a 100%);
+            border-radius: 6px;
+            position: absolute;
+            bottom: -25px;
+            right: -15px;
+            transform: rotate(-45deg);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .magnifier-handle::after {
             content: '';
             position: absolute;
             width: 15px;
             height: 15px;
-            background: rgba(255, 255, 255, 0.6);
+            background: #4a4a4a;
             border-radius: 50%;
-            top: 8px;
-            left: 10px;
-            filter: blur(2px);
-        }
-
-        .telescope-handle {
-            width: 25px;
-            height: 12px;
-            background: #3a3a3a;
-            border-radius: 3px;
-            position: absolute;
-            bottom: -8px;
-            left: 20px;
-        }
-
-        @keyframes telescope-search {
-
-            0%,
-            100% {
-                transform: scale(1) rotate(-5deg);
-            }
-
-            33% {
-                transform: scale(1.05) rotate(5deg);
-            }
-
-            66% {
-                transform: scale(1.05) rotate(-3deg);
-            }
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
         }
 
 
@@ -926,11 +907,11 @@
         <div id="zzz-container" class="zzz-container"></div>
         <div id="vomit-container" class="vomit-container"></div>
         <div id="sneeze-text" class="sneeze-text">Hachzzz</div>
-        <div id="telescope" class="telescope">
-            <div class="telescope-body">
-                <div class="telescope-lens"></div>
-                <div class="telescope-handle"></div>
+        <div id="magnifier" class="magnifier">
+            <div class="magnifier-rim">
+                <div class="magnifier-glass"></div>
             </div>
+            <div class="magnifier-handle"></div>
         </div>
         <div class="eyebrow left"></div>
         <div class="eyebrow right"></div>
@@ -1251,41 +1232,19 @@
             isSearching = true;
             face.classList.remove('angry', 'sad', 'jealous', 'crying', 'demanding', 'suspicious', 'cuddling', 'upset');
             face.classList.add('searching');
-            const telescope = document.getElementById('telescope');
-            telescope.classList.add('active');
+            const magnifier = document.getElementById('magnifier');
+            magnifier.classList.add('active');
 
-            // Make the left eye look around through the telescope
-            let searchAngle = 0;
-            searchLookInterval = setInterval(() => {
-                searchAngle += 0.5;
-                const radius = 80;
-                const searchX = window.innerWidth / 2 + Math.cos(searchAngle) * radius;
-                const searchY = window.innerHeight / 2 + Math.sin(searchAngle) * radius;
-
-                // Only move the left eye (the one with telescope)
-                const leftEye = document.querySelector('.eye');
-                const pupil = leftEye.querySelector('.pupil');
-                const rect = leftEye.getBoundingClientRect();
-                const eyeCenterX = rect.left + rect.width / 2;
-                const eyeCenterY = rect.top + rect.height / 2;
-
-                const angle = Math.atan2(searchY - eyeCenterY, searchX - eyeCenterX);
-                const maxDistance = (rect.width - pupil.offsetWidth) / 2;
-                const moveRadius = maxDistance * 0.8;
-
-                const moveX = Math.cos(angle) * moveRadius;
-                const moveY = Math.sin(angle) * moveRadius;
-
-                pupil.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
-            }, 50);
+            // Keep eyes looking straight forward like monocle emoji 🧐
+            lookAtUser();
         }
 
         function stopSearching() {
             if (!isSearching) return;
             isSearching = false;
             face.classList.remove('searching');
-            const telescope = document.getElementById('telescope');
-            telescope.classList.remove('active');
+            const magnifier = document.getElementById('magnifier');
+            magnifier.classList.remove('active');
 
             if (searchLookInterval) {
                 clearInterval(searchLookInterval);
