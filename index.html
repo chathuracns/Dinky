@@ -477,11 +477,23 @@
             }
         }
 
-        /* Vomit/Sick State */
+        /* Vomit/Sick State - Nauseated 🤢 */
         .face.vomiting {
-            background-color: #98fb98;
-            /* Pale Green */
+            background-color: #9acd32;
+            /* Yellowish green like 🤢 */
             animation: sick-shake 0.3s infinite;
+        }
+
+        .face.vomiting .eyebrow {
+            top: 22%;
+        }
+
+        .face.vomiting .eyebrow.left {
+            transform: rotate(-20deg);
+        }
+
+        .face.vomiting .eyebrow.right {
+            transform: rotate(20deg);
         }
 
         .face.vomiting .eye {
@@ -501,14 +513,26 @@
         }
 
         .face.vomiting .mouth {
-            width: 60px;
-            height: 50px;
-            border-radius: 50%;
-            background-color: #2e8b57;
-            /* Sea Green */
-            bottom: 25%;
+            width: 50px;
+            height: 25px;
             border: none;
-            animation: heave 1s infinite;
+            border-top: 4px solid #6b8e23;
+            border-radius: 50% 50% 0 0;
+            background-color: transparent;
+            bottom: 25%;
+            animation: queasy-mouth 0.5s infinite;
+        }
+
+        @keyframes queasy-mouth {
+
+            0%,
+            100% {
+                transform: translateX(0) scaleX(1);
+            }
+
+            50% {
+                transform: translateX(-3px) scaleX(0.9);
+            }
         }
 
         /* Suspicious/Thief State */
@@ -1198,13 +1222,12 @@
             face.classList.add('vomiting');
             stopPeekingBehavior();
             stopZzzBehavior();
-            startVomitParticles();
+            // No vomit particles - just nauseated expression 🤢
 
             // Recover after 4 seconds
             setTimeout(() => {
                 isVomiting = false;
                 face.classList.remove('vomiting');
-                stopVomitParticles();
                 totalRotation = 0;
                 lastCursorAngle = null;
 
