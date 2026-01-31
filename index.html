@@ -16,6 +16,73 @@
             background-color: #f0f2f5;
             font-family: sans-serif;
             transition: background-color 0.5s;
+            overflow: hidden;
+            --eye-l-open: 1;
+            --eye-r-open: 1;
+            --mouth-h: 50px;
+            --mouth-w: 100px;
+            --mouth-br: 0 0 50px 50px;
+            --mouth-bt: 5px solid #cc8866;
+            --brow-l-rot: 0deg;
+            --brow-r-rot: 0deg;
+            --face-shake-x: 0px;
+            --face-shake-y: 0px;
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            color: #333;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn.active {
+            background: #4caf50;
+            color: white;
+        }
+
+        #webcam-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 160px;
+            height: 120px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 3px solid white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            display: none !important;
+            /* Completely hide the preview */
+            z-index: 100;
+        }
+
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            /* Mirror camera */
         }
 
         .face {
@@ -48,6 +115,11 @@
             overflow: hidden;
             box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
             transition: height 0.3s, margin-top 0.3s;
+            transform: scaleY(var(--eye-l-open, 1));
+        }
+
+        .eye.right {
+            transform: scaleY(var(--eye-r-open, 1));
         }
 
         .pupil {
@@ -75,10 +147,12 @@
 
         .eyebrow.left {
             left: 55px;
+            transform: rotate(var(--brow-l-rot, 0deg));
         }
 
         .eyebrow.right {
             right: 55px;
+            transform: rotate(var(--brow-r-rot, 0deg));
         }
 
         .mouth {
@@ -88,7 +162,11 @@
             border-radius: 0 0 50px 50px;
             position: absolute;
             bottom: 25%;
-            transition: all 0.3s;
+            transition: all 0.1s;
+            height: var(--mouth-h);
+            width: var(--mouth-w);
+            border-radius: var(--mouth-br);
+            border-bottom: var(--mouth-bt);
         }
 
         .tear {
@@ -1074,6 +1152,15 @@
 
 <body>
 
+    <div class="controls">
+        <button id="webcamButton" class="btn">📹 Start Face Tracking</button>
+        <div style="font-size: 10px; color: #666;">Press 'R' to reset</div>
+    </div>
+
+    <div id="webcam-container">
+        <video id="webcam" autoplay playsinline></video>
+    </div>
+
     <div class="face" id="face">
         <div id="zzz-container" class="zzz-container"></div>
         <div id="question-container" class="question-container"></div>
@@ -1106,6 +1193,12 @@
         const face = document.getElementById('face');
         let cuddleTimeout;
         let isTouchingHead = false;
+
+        // WebCam Logic Variables
+        let faceLandmarker;
+        let video = document.getElementById('webcam');
+        let webcamRunning = false;
+        let lastVideoTime = -1;
 
         // Sleeping Logic Variables
         let isSleeping = false;
@@ -1192,6 +1285,174 @@
 
             // Reset eyes
             lookAtUser();
+
+            // WebCam Reset
+            if (webcamRunning) {
+                stopWebcam();
+            }
+
+            // Reset CSS variables
+            document.documentElement.style.setProperty('--eye-l-open', '1');
+            document.documentElement.style.setProperty('--eye-r-open', '1');
+            document.documentElement.style.setProperty('--mouth-h', '50px');
+            document.documentElement.style.setProperty('--mouth-w', '100px');
+            document.documentElement.style.setProperty('--mouth-br', '0 0 50px 50px');
+            document.documentElement.style.setProperty('--mouth-bt', '5px solid #cc8866');
+            document.documentElement.style.setProperty('--brow-l-rot', '0deg');
+            document.documentElement.style.setProperty('--brow-r-rot', '0deg');
+        }
+
+        // --- WebCam Face Tracking Logic ---
+
+        async function initFaceLandmarker() {
+            const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3');
+            const { FaceLandmarker, FilesetResolver } = vision;
+
+            const filesetResolver = await FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+            );
+
+            faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+                baseOptions: {
+                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                    delegate: "GPU"
+                },
+                outputFaceBlendshapes: true,
+                runningMode: "VIDEO",
+                numFaces: 1
+            });
+
+            console.log("Face Landmarker Loaded");
+        }
+
+        const webcamButton = document.getElementById('webcamButton');
+        webcamButton.addEventListener('click', async () => {
+            if (!faceLandmarker) {
+                webcamButton.innerText = "⏳ Loading Model...";
+                await initFaceLandmarker();
+            }
+
+            if (webcamRunning === true) {
+                stopWebcam();
+            } else {
+                startWebcam();
+            }
+        });
+
+        function startWebcam() {
+            webcamRunning = true;
+            webcamButton.innerText = "🛑 Stop Tracking";
+            webcamButton.classList.add('active');
+            // Removed display: block here
+
+            const constraints = { video: true };
+            navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+                video.srcObject = stream;
+                console.log("📹 Video stream started");
+                video.addEventListener("loadeddata", () => {
+                    console.log("✅ Video loaded, starting detection...");
+                    predictWebcam();
+                });
+            }).catch((error) => {
+                console.error("❌ Camera error:", error);
+                alert("Could not access camera: " + error.message);
+            });
+        }
+
+        function stopWebcam() {
+            webcamRunning = false;
+            webcamButton.innerText = "📹 Start Face Tracking";
+            webcamButton.classList.remove('active');
+            // Removed display: none here
+
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        async function predictWebcam() {
+            if (!webcamRunning) return;
+
+            let startTimeMs = performance.now();
+            if (lastVideoTime !== video.currentTime) {
+                lastVideoTime = video.currentTime;
+                const results = faceLandmarker.detectForVideo(video, startTimeMs);
+
+                // Check if face is detected
+                if (results.faceLandmarks && results.faceLandmarks.length > 0 &&
+                    results.faceBlendshapes && results.faceBlendshapes.length > 0) {
+
+                    const blendshapes = results.faceBlendshapes[0].categories;
+                    const getScore = (name) => blendshapes.find(c => c.categoryName === name)?.score || 0;
+
+                    // Get eye direction blendshapes
+                    const eyeLookDownLeft = getScore('eyeLookDownLeft');
+                    const eyeLookDownRight = getScore('eyeLookDownRight');
+                    const eyeLookInLeft = getScore('eyeLookInLeft');
+                    const eyeLookInRight = getScore('eyeLookInRight');
+                    const eyeLookOutLeft = getScore('eyeLookOutLeft');
+                    const eyeLookOutRight = getScore('eyeLookOutRight');
+                    const eyeLookUpLeft = getScore('eyeLookUpLeft');
+                    const eyeLookUpRight = getScore('eyeLookUpRight');
+
+                    // Calculate total gaze deviation (higher = looking away from camera)
+                    const gazeDeviation = (
+                        eyeLookDownLeft + eyeLookDownRight +
+                        eyeLookInLeft + eyeLookInRight +
+                        eyeLookOutLeft + eyeLookOutRight +
+                        eyeLookUpLeft + eyeLookUpRight
+                    ) / 8;
+
+                    console.log(`👁️ Gaze deviation: ${gazeDeviation.toFixed(3)} (lower = looking at screen)`);
+
+                    // If gaze deviation is LOW (< 0.15), user is looking at camera/screen (very sensitive)
+                    if (gazeDeviation < 0.15) {
+                        console.log("😊 LOOKING AT SCREEN - Making Dinky happy!");
+                        // User is looking at screen - Wake up if sleeping!
+                        if (isSleeping) {
+                            isSleeping = false;
+                            face.classList.remove('sleeping');
+                            stopZzzBehavior();
+                        }
+                        // Make Dinky HAPPY!
+                        face.classList.remove('sad', 'angry', 'jealous', 'crying', 'demanding', 'suspicious', 'upset', 'vomiting');
+
+                        // Make him smile with happy colors
+                        face.style.backgroundColor = '#ffd1dc'; // Pink/happy
+                        document.documentElement.style.setProperty('--mouth-w', '100px');
+                        document.documentElement.style.setProperty('--mouth-h', '40px');
+                        document.documentElement.style.setProperty('--mouth-br', '0 0 50px 50px');
+                        document.documentElement.style.setProperty('--mouth-bt', '6px solid #ff8fa3'); // Pink smile
+
+                        // Happy eyes
+                        document.documentElement.style.setProperty('--eye-l-open', '1');
+                        document.documentElement.style.setProperty('--eye-r-open', '1');
+
+                        // Neutral eyebrows
+                        document.documentElement.style.setProperty('--brow-l-rot', '0deg');
+                        document.documentElement.style.setProperty('--brow-r-rot', '0deg');
+                    } else {
+                        console.log("� LOOKING AWAY - Making Dinky sleep");
+                        // User is looking away - Make Dinky SLEEP!
+                        if (!isSleeping) {
+                            isSleeping = true;
+                            face.classList.remove('angry', 'jealous', 'crying', 'demanding', 'suspicious', 'upset', 'vomiting', 'sad');
+                            face.classList.add('sleeping');
+                            startZzzBehavior();
+                        }
+                    }
+                } else {
+                    console.log("❌ NO FACE DETECTED - Making Dinky sleep");
+                    // No face - also sleep
+                    if (!isSleeping) {
+                        isSleeping = true;
+                        face.classList.remove('angry', 'jealous', 'crying', 'demanding', 'suspicious', 'upset', 'vomiting', 'sad');
+                        face.classList.add('sleeping');
+                        startZzzBehavior();
+                    }
+                }
+            }
+            window.requestAnimationFrame(predictWebcam);
         }
 
         function startUpsetState() {
@@ -1434,7 +1695,7 @@
         }
 
         function moveEyesTo(targetX, targetY) {
-            if (isSleeping || isVomiting) return;
+            if (isSleeping || isVomiting || webcamRunning) return; // Don't move eyes when face tracking
             const eyes = document.querySelectorAll('.eye');
             eyes.forEach(eye => {
                 const pupil = eye.querySelector('.pupil');
@@ -1457,7 +1718,7 @@
         // ... (lookAtUser and startIdleBehavior remain same)
 
         function lookAtUser() {
-            if (isSleeping || isVomiting) return;
+            if (isSleeping || isVomiting) return; // Allow looking at user even during webcam
             const pupils = document.querySelectorAll('.pupil');
             pupils.forEach(pupil => {
                 // Reset to center
@@ -1710,8 +1971,9 @@
                 idleTimer = setTimeout(startIdleBehavior, 1500); // Wait 1.5s after stop before starting idle behavior
             }
 
-            // 3. Move eyes to cursor immediately (unless cuddling or sneezing)
-            if (!face.classList.contains('cuddling') &&
+            // 3. Move eyes to cursor immediately (unless cuddling or sneezing or webcam active)
+            if (!webcamRunning &&
+                !face.classList.contains('cuddling') &&
                 !face.classList.contains('sneeze-buildup') &&
                 !face.classList.contains('sneezing')) {
 
@@ -1720,6 +1982,9 @@
                 } else {
                     moveEyesTo(x, y);
                 }
+            } else if (webcamRunning) {
+                // Keep eyes looking straight at user during face tracking
+                lookAtUser();
             }
         });
 
