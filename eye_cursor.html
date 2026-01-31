@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EyeGaze Cursor Control</title>
+    <style>
+        :root {
+            --primary: #2196f3;
+            --secondary: #00bcd4;
+            --bg: #ffffff;
+            --surface: #f8f9fa;
+            --text: #1a1f29;
+            --cursor-color: rgba(33, 150, 243, 0.4);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* The Custom Cursor */
+        #gaze-cursor {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--primary);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px var(--primary);
+            transition: transform 0.1s ease-out;
+            display: none;
+        }
+
+        #gaze-cursor::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 6px;
+            height: 6px;
+            background: var(--primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .ui-container {
+            z-index: 100;
+            text-align: center;
+            background: var(--surface);
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            max-width: 400px;
+        }
+
+        h1 {
+            margin-top: 0;
+            font-weight: 300;
+            letter-spacing: 1px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            color: rgba(0, 0, 0, 0.6);
+            font-size: 15px;
+            line-height: 1.6;
+            font-weight: 500;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            color: #000;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 242, 254, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.active {
+            background: #ff4d4d;
+            color: white;
+        }
+
+        #status {
+            margin-top: 15px;
+            font-size: 12px;
+            color: var(--primary);
+            font-family: monospace;
+        }
+
+        #webcam-preview {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 160px;
+            height: 120px;
+            border-radius: 10px;
+            border: 2px solid var(--primary);
+            background: #000;
+            opacity: 0.5;
+            display: none;
+        }
+
+        /* Interaction grid for visual feedback */
+        .grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            pointer-events: none;
+        }
+
+        .grid-cell {
+            border: 1px solid rgba(0, 0, 0, 0.02);
+        }
+
+        /* Calibration Overlay */
+        #calibration-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 20000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .calib-dot {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background: var(--primary);
+            border-radius: 50%;
+            border: 4px solid #fff;
+            box-shadow: 0 0 15px var(--primary);
+            transform: translate(-50%, -50%);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .calib-dot.active {
+            transform: translate(-50%, -50%) scale(1.5);
+            background: #ff4d4d;
+            box-shadow: 0 0 30px #ff4d4d;
+        }
+
+        #calib-instruction {
+            position: absolute;
+            top: 45%;
+            width: 100%;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 300;
+            color: #1a1f29;
+        }
+
+        .instructions-list {
+            font-size: 13px;
+            padding-left: 20px;
+            color: rgba(0, 0, 0, 0.5);
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="grid">
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+        <div class="grid-cell"></div>
+    </div>
+
+    <div id="gaze-cursor"></div>
+
+    <div id="calibration-overlay">
+        <div id="calib-instruction">Look at the red dot</div>
+        <div id="calib-dot" class="calib-dot"></div>
+    </div>
+
+    <video id="webcam-preview" autoplay playsinline></video>
+
+    <div class="ui-container">
+        <h1>EYE GAZE</h1>
+        <p>Control your cursor using only your eyes. Look around the screen to navigate.</p>
+
+        <button id="toggleBtn" class="btn">Start Gaze Control</button>
+        <button id="calibBtn" class="btn"
+            style="background: #e0e0e0; margin-left:10px; display:none;">Calibrate</button>
+        <div id="status">System Offline</div>
+
+        <div style="margin-top: 40px; text-align: left;">
+            <div
+                style="font-size: 11px; text-transform: uppercase; opacity: 0.4; margin-bottom: 8px; font-weight: 700; color: var(--text);">
+                Instructions:
+            </div>
+            <ul class="instructions-list">
+                <li>Keep your head still for best results.</li>
+                <li>The white background helps illuminate your face for the AI.</li>
+                <li>Look at the center of the screen to calibrate.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script type="module">
+        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+
+        const video = document.getElementById("webcam-preview");
+        const toggleBtn = document.getElementById("toggleBtn");
+        const calibBtn = document.getElementById("calibBtn");
+        const status = document.getElementById("status");
+        const cursor = document.getElementById("gaze-cursor");
+        const calibOverlay = document.getElementById("calibration-overlay");
+        const calibDot = document.getElementById("calib-dot");
+        const calibInstruction = document.getElementById("calib-instruction");
+
+        let faceLandmarker;
+        let runningMode = "VIDEO";
+        let webcamRunning = false;
+        let lastVideoTime = -1;
+
+        // Calibration state
+        let isCalibrating = false;
+        let calibPoints = [
+            { x: 10, y: 10 }, { x: 50, y: 10 }, { x: 90, y: 10 },
+            { x: 10, y: 50 }, { x: 50, y: 50 }, { x: 90, y: 50 },
+            { x: 10, y: 90 }, { x: 50, y: 90 }, { x: 90, y: 90 }
+        ];
+        let currentCalibIndex = 0;
+        let calibData = [];
+        let calibResults = {
+            minX: -0.2, maxX: 0.2,
+            minY: -0.2, maxY: 0.2
+        };
+
+        // Smoothing variables
+        let cursorX = window.innerWidth / 2;
+        let cursorY = window.innerHeight / 2;
+        const smoothing = 0.15;
+
+        async function init() {
+            status.innerText = "Initializing AI Models...";
+            const filesetResolver = await FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+            );
+            faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+                baseOptions: {
+                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                    delegate: "GPU"
+                },
+                outputFaceBlendshapes: true,
+                runningMode: runningMode,
+                numFaces: 1
+            });
+            status.innerText = "System Ready";
+            calibBtn.style.display = "inline-block";
+        }
+
+        init();
+
+        toggleBtn.addEventListener("click", () => {
+            if (!faceLandmarker) return;
+            toggleTracking();
+        });
+
+        calibBtn.addEventListener("click", () => {
+            if (!webcamRunning) {
+                toggleTracking().then(() => startCalibration());
+            } else {
+                startCalibration();
+            }
+        });
+
+        async function toggleTracking() {
+            if (webcamRunning) {
+                webcamRunning = false;
+                toggleBtn.innerText = "Start Gaze Control";
+                toggleBtn.classList.remove("active");
+                cursor.style.display = "none";
+                status.innerText = "Tracking Stopped";
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
+            } else {
+                webcamRunning = true;
+                toggleBtn.innerText = "Stop Gaze Control";
+                toggleBtn.classList.add("active");
+                cursor.style.display = "block";
+                status.innerText = "Initializing Camera...";
+
+                return new Promise((resolve) => {
+                    const constraints = { video: true };
+                    navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+                        video.srcObject = stream;
+                        video.addEventListener("loadeddata", () => {
+                            predictWebcam();
+                            resolve();
+                        });
+                    });
+                });
+            }
+        }
+
+        function startCalibration() {
+            isCalibrating = true;
+            currentCalibIndex = 0;
+            calibData = [];
+            calibOverlay.style.display = "flex";
+            status.innerText = "Calibration In Progress";
+            showNextCalibPoint();
+        }
+
+        function showNextCalibPoint() {
+            if (currentCalibIndex >= calibPoints.length) {
+                finishCalibration();
+                return;
+            }
+
+            const pt = calibPoints[currentCalibIndex];
+            calibDot.style.left = pt.x + "%";
+            calibDot.style.top = pt.y + "%";
+            calibDot.classList.add("active");
+
+            // Give user time to focus
+            setTimeout(() => {
+                currentCalibIndex++;
+                showNextCalibPoint();
+            }, 2000);
+        }
+
+        function finishCalibration() {
+            isCalibrating = false;
+            calibOverlay.style.display = "none";
+
+            // Calculate ranges based on collected data
+            if (calibData.length > 0) {
+                const xs = calibData.map(d => d.rawX);
+                const ys = calibData.map(d => d.rawY);
+                calibResults.minX = Math.min(...xs);
+                calibResults.maxX = Math.max(...xs);
+                calibResults.minY = Math.min(...ys);
+                calibResults.maxY = Math.max(...ys);
+
+                // Add some buffer (10%)
+                const xBuf = (calibResults.maxX - calibResults.minX) * 0.1;
+                const yBuf = (calibResults.maxY - calibResults.minY) * 0.1;
+                calibResults.minX -= xBuf;
+                calibResults.maxX += xBuf;
+                calibResults.minY -= yBuf;
+                calibResults.maxY += yBuf;
+            }
+
+            status.innerText = "Calibration Complete";
+        }
+
+        async function predictWebcam() {
+            if (!webcamRunning) return;
+
+            let startTimeMs = performance.now();
+            if (lastVideoTime !== video.currentTime) {
+                lastVideoTime = video.currentTime;
+                const results = faceLandmarker.detectForVideo(video, startTimeMs);
+
+                if (results.faceBlendshapes && results.faceBlendshapes.length > 0) {
+                    const blendshapes = results.faceBlendshapes[0].categories;
+                    const getScore = (name) => blendshapes.find(c => c.categoryName === name)?.score || 0;
+
+                    const lookLeft = getScore("eyeLookOutLeft") || getScore("eyeLookInRight");
+                    const lookRight = getScore("eyeLookInLeft") || getScore("eyeLookOutRight");
+                    const lookUp = getScore("eyeLookUpLeft") + getScore("eyeLookUpRight");
+                    const lookDown = getScore("eyeLookDownLeft") + getScore("eyeLookDownRight");
+
+                    const rawX = (lookRight - lookLeft);
+                    const rawY = (lookDown - lookUp);
+
+                    if (isCalibrating) {
+                        // Collect data for current point
+                        calibData.push({ rawX, rawY });
+                    } else {
+                        // Map using calibrated results
+                        let targetPercX = (rawX - calibResults.minX) / (calibResults.maxX - calibResults.minX);
+                        let targetPercY = (rawY - calibResults.minY) / (calibResults.maxY - calibResults.minY);
+
+                        // Clamp 0-1
+                        targetPercX = Math.max(0, Math.min(1, targetPercX));
+                        targetPercY = Math.max(0, Math.min(1, targetPercY));
+
+                        const screenX = targetPercX * window.innerWidth;
+                        const screenY = targetPercY * window.innerHeight;
+
+                        // Apply Smoothing
+                        cursorX = cursorX + (screenX - cursorX) * smoothing;
+                        cursorY = cursorY + (screenY - cursorY) * smoothing;
+
+                        cursor.style.left = `${cursorX}px`;
+                        cursor.style.top = `${cursorY}px`;
+                    }
+
+                    if (!isCalibrating) status.innerText = "Tracking Active";
+                } else {
+                    status.innerText = "Face Not Detected";
+                }
+            }
+
+            if (webcamRunning) {
+                window.requestAnimationFrame(predictWebcam);
+            }
+        }
+    </script>
+</body>
+
+</html>
