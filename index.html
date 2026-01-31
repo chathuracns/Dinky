@@ -131,26 +131,136 @@
             right: 50px;
         }
 
-        /* Angry Expression */
+        /* Angry Expression - Intense */
         .face.angry {
-            background-color: #ffb3b3;
+            background-color: #ff4d4d;
+            background: radial-gradient(circle at center, #ff6b6b 0%, #ff0000 100%);
+            animation: tremble 0.1s infinite;
         }
 
         .face.angry .eyebrow.left {
-            transform: rotate(20deg);
-            top: 28%;
+            transform: rotate(35deg) scaleX(1.1);
+            top: 30%;
+            background-color: #3e2723;
         }
 
         .face.angry .eyebrow.right {
-            transform: rotate(-20deg);
-            top: 28%;
+            transform: rotate(-35deg) scaleX(1.1);
+            top: 30%;
+            background-color: #3e2723;
+        }
+
+        .face.angry .eye {
+            height: 40px;
+            margin-top: 20px;
+            border-top: 3px solid #3e2723;
+        }
+
+        .face.angry .pupil {
+            background-color: #000;
+            width: 25px;
+            height: 25px;
         }
 
         .face.angry .mouth {
+            width: 80px;
+            height: 10px;
             border-bottom: none;
-            border-top: 5px solid #cc8866;
-            border-radius: 50px 50px 0 0;
-            bottom: 20%;
+            border-top: 6px solid #3e2723;
+            border-radius: 50% 50% 0 0;
+            bottom: 25%;
+            transform: rotate(180deg);
+            /* Flip it upside down for a grit look */
+        }
+
+        /* Anger Mark 💢 */
+        .anger-mark {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            width: 40px;
+            height: 40px;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .face.angry .anger-mark {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .anger-mark:before,
+        .anger-mark:after {
+            content: '';
+            position: absolute;
+            background-color: #e53935;
+        }
+
+        .anger-mark:before {
+            width: 100%;
+            height: 6px;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%) rotate(45deg);
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .anger-mark:after {
+            width: 6px;
+            height: 100%;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%) rotate(45deg);
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        @keyframes tremble {
+            0% {
+                transform: translate(1px, 1px) rotate(0deg);
+            }
+
+            10% {
+                transform: translate(-1px, -2px) rotate(-1deg);
+            }
+
+            20% {
+                transform: translate(-3px, 0px) rotate(1deg);
+            }
+
+            30% {
+                transform: translate(3px, 2px) rotate(0deg);
+            }
+
+            40% {
+                transform: translate(1px, -1px) rotate(1deg);
+            }
+
+            50% {
+                transform: translate(-1px, 2px) rotate(-1deg);
+            }
+
+            60% {
+                transform: translate(-3px, 1px) rotate(0deg);
+            }
+
+            70% {
+                transform: translate(3px, 1px) rotate(-1deg);
+            }
+
+            80% {
+                transform: translate(-1px, -1px) rotate(1deg);
+            }
+
+            90% {
+                transform: translate(1px, 2px) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(1px, -2px) rotate(-1deg);
+            }
         }
 
         /* Sad Expression */
@@ -969,6 +1079,7 @@
         <div id="question-container" class="question-container"></div>
         <div id="vomit-container" class="vomit-container"></div>
         <div id="sneeze-text" class="sneeze-text">Hachzzz</div>
+        <div class="anger-mark"></div>
         <div id="magnifier" class="magnifier">
             <div class="magnifier-rim">
                 <div class="magnifier-glass"></div>
@@ -1038,6 +1149,50 @@
         let searchTimeout = null;
         let lastMoveTime = Date.now();
         let searchLookInterval = null;
+
+        function resetDinky() {
+            // Stop all intervals and timeouts
+            stopPeekingBehavior();
+            stopZzzBehavior();
+            stopQuestionBehavior();
+            stopVomitParticles();
+            clearTimeout(cuddleTimeout);
+            clearTimeout(sleepTimeout);
+            clearTimeout(sneezeTimeout);
+            clearTimeout(searchTimeout);
+            clearTimeout(spinResetTimeout);
+
+            if (upsetCureTimeout) clearTimeout(upsetCureTimeout);
+            if (upsetTimeout) clearTimeout(upsetTimeout);
+
+            // Reset states
+            isSleeping = false;
+            isVomiting = false;
+            isSearching = false;
+            isUpset = false;
+            isPeeking = false;
+            isTouchingHead = false;
+            cuddleStartTime = null;
+            totalRotation = 0;
+            lastCursorAngle = null;
+
+            // Remove all mood classes
+            face.classList.remove(
+                'angry', 'sad', 'jealous', 'crying', 'demanding',
+                'suspicious', 'cuddling', 'sneeze-buildup', 'sneezing',
+                'sleeping', 'vomiting', 'searching', 'upset', 'blinking'
+            );
+
+            // Reset UI elements
+            const magnifier = document.getElementById('magnifier');
+            if (magnifier) magnifier.classList.remove('active');
+
+            const sneezeText = document.getElementById('sneeze-text');
+            if (sneezeText) sneezeText.classList.remove('show');
+
+            // Reset eyes
+            lookAtUser();
+        }
 
         function startUpsetState() {
             isUpset = true;
@@ -1603,6 +1758,64 @@
             setTimeout(() => {
                 face.classList.remove('drop-in');
             }, 1200);
+        });
+
+        // Keyboard Triggers
+        window.addEventListener('keydown', (e) => {
+            // Ignore if user is typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            const key = e.key.toLowerCase();
+
+            // Expressions (1-6)
+            if (key >= '1' && key <= '6') {
+                resetDinky();
+                const moods = ['', 'angry', 'sad', 'jealous', 'crying', 'suspicious', 'demanding'];
+                const mood = moods[parseInt(key)];
+                if (mood) {
+                    face.classList.add(mood);
+                    if (mood === 'suspicious') startPeekingBehavior();
+                }
+                return;
+            }
+
+            switch (key) {
+                case 's': // Sleep Toggle
+                    if (isSleeping) wakeUp();
+                    else { resetDinky(); goToSleep(); }
+                    break;
+                case 'v': // Vomit Action
+                    resetDinky();
+                    vomit();
+                    break;
+                case 'h': // Sneeze Action
+                    resetDinky();
+                    face.classList.add('sneeze-buildup');
+                    setTimeout(() => {
+                        if (face.classList.contains('sneeze-buildup')) {
+                            face.classList.remove('sneeze-buildup');
+                            face.classList.add('sneezing');
+                            const text = document.getElementById('sneeze-text');
+                            text.classList.add('show');
+                            setTimeout(() => {
+                                face.classList.remove('sneezing');
+                                text.classList.remove('show');
+                            }, 500);
+                        }
+                    }, 1500);
+                    break;
+                case 'f': // Search/Find Toggle
+                    if (isSearching) stopSearching();
+                    else { resetDinky(); startSearching(); }
+                    break;
+                case 'u': // Upset Toggle
+                    if (isUpset) stopUpsetState();
+                    else { resetDinky(); startUpsetState(); }
+                    break;
+                case 'r': // Reset to Neutral
+                    resetDinky();
+                    break;
+            }
         });
     </script>
 </body>
