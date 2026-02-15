@@ -56,6 +56,71 @@
             transform: translate(-50%, -50%);
         }
 
+        /* Bullet projectile */
+        .bullet {
+            position: fixed;
+            width: 8px;
+            height: 8px;
+            background: radial-gradient(circle, #ffeb3b, #ff9800);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            box-shadow: 0 0 12px #ff9800, 0 0 24px rgba(255, 152, 0, 0.5);
+            transform: translate(-50%, -50%);
+        }
+
+        .bullet-trail {
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 235, 59, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Cursor impact effect */
+        #gaze-cursor.impact {
+            border-color: #ff4d4d !important;
+            box-shadow: 0 0 30px #ff4d4d, 0 0 60px rgba(255, 77, 77, 0.4) !important;
+            animation: cursorPulse 0.3s ease-out;
+        }
+
+        @keyframes cursorPulse {
+            0% {
+                transform: translate(-50%, -50%) scale(1.6);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .impact-ring {
+            position: fixed;
+            border: 2px solid rgba(255, 152, 0, 0.7);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            animation: ringExpand 0.4s ease-out forwards;
+        }
+
+        @keyframes ringExpand {
+            0% {
+                width: 10px;
+                height: 10px;
+                opacity: 1;
+            }
+
+            100% {
+                width: 80px;
+                height: 80px;
+                opacity: 0;
+            }
+        }
+
         .ui-container {
             z-index: 100;
             text-align: center;
@@ -198,6 +263,51 @@
             color: rgba(0, 0, 0, 0.5);
             font-weight: 500;
         }
+
+        .slider-group {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .slider-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            opacity: 0.4;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .slider-label span {
+            opacity: 1;
+            color: var(--primary);
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid var(--primary);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
     </style>
 </head>
 
@@ -233,6 +343,11 @@
             style="background: #e0e0e0; margin-left:10px; display:none;">Calibrate</button>
         <div id="status">System Offline</div>
 
+        <div class="slider-group">
+            <div class="slider-label">Sensitivity <span id="sensitivityValue">5000</span></div>
+            <input type="range" id="sensitivitySlider" min="500" max="20000" value="5000" step="100">
+        </div>
+
         <div style="margin-top: 40px; text-align: left;">
             <div
                 style="font-size: 11px; text-transform: uppercase; opacity: 0.4; margin-bottom: 8px; font-weight: 700; color: var(--text);">
@@ -257,6 +372,14 @@
         const calibOverlay = document.getElementById("calibration-overlay");
         const calibDot = document.getElementById("calib-dot");
         const calibInstruction = document.getElementById("calib-instruction");
+        const sensitivitySlider = document.getElementById("sensitivitySlider");
+        const sensitivityValue = document.getElementById("sensitivityValue");
+
+        // Update sensitivity in real-time from slider
+        sensitivitySlider.addEventListener("input", () => {
+            sensitivity = parseInt(sensitivitySlider.value);
+            sensitivityValue.textContent = sensitivity;
+        });
 
         let faceLandmarker;
         let runningMode = "VIDEO";
@@ -277,10 +400,114 @@
             minY: -0.2, maxY: 0.2
         };
 
-        // Smoothing variables
+        // Relative cursor state
         let cursorX = window.innerWidth / 2;
         let cursorY = window.innerHeight / 2;
-        const smoothing = 0.15;
+
+        // Previous gaze values for delta computation
+        let prevGazeX = null;
+        let prevGazeY = null;
+
+        // Rolling history buffers for smoothing
+        let gazeHistoryX = [];
+        let gazeHistoryY = [];
+        const historySize = 5;
+
+        // Sensitivity multiplier: how many pixels per unit of nose position delta
+        let sensitivity = 5000;
+
+        // Minimum delta to count as intentional movement (noise gate)
+        const threshold = 0.002;
+
+        // --- Nose stability & blink detection state ---
+        let noseStableFrames = 0;            // consecutive frames nose hasn't moved
+        const noseStableThreshold = 8;       // frames before blink detection kicks in
+        const blinkThreshold = 0.4;          // blendshape score to count as a blink
+        let isBlinking = false;              // debounce: currently in a blink
+        let blinkCooldown = false;           // cooldown after firing
+
+        function average(arr) {
+            if (arr.length === 0) return 0;
+            return arr.reduce((a, b) => a + b, 0) / arr.length;
+        }
+
+        function resetGazeState() {
+            prevGazeX = null;
+            prevGazeY = null;
+            gazeHistoryX = [];
+            gazeHistoryY = [];
+            cursorX = window.innerWidth / 2;
+            cursorY = window.innerHeight / 2;
+            noseStableFrames = 0;
+            isBlinking = false;
+            blinkCooldown = false;
+        }
+
+        // --- Bullet firing animation ---
+        function fireBullet(targetX, targetY) {
+            if (blinkCooldown) return;
+            blinkCooldown = true;
+
+            const startX = window.innerWidth / 2;
+            const startY = window.innerHeight + 20;
+            const bullet = document.createElement('div');
+            bullet.className = 'bullet';
+            bullet.style.left = startX + 'px';
+            bullet.style.top = startY + 'px';
+            document.body.appendChild(bullet);
+
+            const duration = 250; // ms
+            const startTime = performance.now();
+            const trailInterval = 30;
+            let lastTrailTime = 0;
+
+            function animateBullet(now) {
+                const elapsed = now - startTime;
+                const t = Math.min(elapsed / duration, 1);
+                // Ease-out for decelerating feel
+                const easeT = 1 - Math.pow(1 - t, 3);
+
+                const bx = startX + (targetX - startX) * easeT;
+                const by = startY + (targetY - startY) * easeT;
+                bullet.style.left = bx + 'px';
+                bullet.style.top = by + 'px';
+
+                // Leave trail particles
+                if (now - lastTrailTime > trailInterval && t < 0.9) {
+                    lastTrailTime = now;
+                    const trail = document.createElement('div');
+                    trail.className = 'bullet-trail';
+                    trail.style.left = bx + 'px';
+                    trail.style.top = by + 'px';
+                    document.body.appendChild(trail);
+                    setTimeout(() => trail.remove(), 200);
+                }
+
+                if (t < 1) {
+                    requestAnimationFrame(animateBullet);
+                } else {
+                    // Impact!
+                    bullet.remove();
+
+                    // Cursor flash
+                    cursor.classList.add('impact');
+                    setTimeout(() => cursor.classList.remove('impact'), 300);
+
+                    // Shockwave ring
+                    const ring = document.createElement('div');
+                    ring.className = 'impact-ring';
+                    ring.style.left = targetX + 'px';
+                    ring.style.top = targetY + 'px';
+                    document.body.appendChild(ring);
+                    setTimeout(() => ring.remove(), 400);
+
+                    // Cooldown reset
+                    setTimeout(() => { blinkCooldown = false; }, 500);
+                }
+            }
+
+            requestAnimationFrame(animateBullet);
+        }
 
         async function init() {
             status.innerText = "Initializing AI Models...";
@@ -322,6 +549,7 @@
                 toggleBtn.classList.remove("active");
                 cursor.style.display = "none";
                 status.innerText = "Tracking Stopped";
+                resetGazeState();
                 if (video.srcObject) {
                     video.srcObject.getTracks().forEach(track => track.stop());
                 }
@@ -394,6 +622,8 @@
                 calibResults.maxY += yBuf;
             }
 
+            // Reset gaze state so cursor starts fresh from center
+            resetGazeState();
             status.innerText = "Calibration Complete";
         }
 
@@ -405,42 +635,81 @@
                 lastVideoTime = video.currentTime;
                 const results = faceLandmarker.detectForVideo(video, startTimeMs);
 
-                if (results.faceBlendshapes && results.faceBlendshapes.length > 0) {
-                    const blendshapes = results.faceBlendshapes[0].categories;
-                    const getScore = (name) => blendshapes.find(c => c.categoryName === name)?.score || 0;
-
-                    const lookLeft = getScore("eyeLookOutLeft") || getScore("eyeLookInRight");
-                    const lookRight = getScore("eyeLookInLeft") || getScore("eyeLookOutRight");
-                    const lookUp = getScore("eyeLookUpLeft") + getScore("eyeLookUpRight");
-                    const lookDown = getScore("eyeLookDownLeft") + getScore("eyeLookDownRight");
-
-                    const rawX = (lookRight - lookLeft);
-                    const rawY = (lookDown - lookUp);
+                if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+                    // --- Nose position (coarse control) ---
+                    const noseTip = results.faceLandmarks[0][1];
+                    const rawX = -noseTip.x;  // invert for mirrored webcam
+                    const rawY = noseTip.y;
 
                     if (isCalibrating) {
-                        // Collect data for current point
                         calibData.push({ rawX, rawY });
                     } else {
-                        // Map using calibrated results
-                        let targetPercX = (rawX - calibResults.minX) / (calibResults.maxX - calibResults.minX);
-                        let targetPercY = (rawY - calibResults.minY) / (calibResults.maxY - calibResults.minY);
+                        // First frame: store nose position, don't move
+                        if (prevGazeX === null) {
+                            prevGazeX = rawX;
+                            prevGazeY = rawY;
+                        } else {
+                            // Compute nose delta
+                            let deltaX = rawX - prevGazeX;
+                            let deltaY = rawY - prevGazeY;
+                            prevGazeX = rawX;
+                            prevGazeY = rawY;
 
-                        // Clamp 0-1
-                        targetPercX = Math.max(0, Math.min(1, targetPercX));
-                        targetPercY = Math.max(0, Math.min(1, targetPercY));
+                            // Push to rolling buffer for smoothing
+                            gazeHistoryX.push(deltaX);
+                            gazeHistoryY.push(deltaY);
+                            if (gazeHistoryX.length > historySize) {
+                                gazeHistoryX.shift();
+                                gazeHistoryY.shift();
+                            }
 
-                        const screenX = targetPercX * window.innerWidth;
-                        const screenY = targetPercY * window.innerHeight;
+                            const smoothDeltaX = average(gazeHistoryX);
+                            const smoothDeltaY = average(gazeHistoryY);
 
-                        // Apply Smoothing
-                        cursorX = cursorX + (screenX - cursorX) * smoothing;
-                        cursorY = cursorY + (screenY - cursorY) * smoothing;
+                            const noseMoving = Math.abs(smoothDeltaX) > threshold || Math.abs(smoothDeltaY) > threshold;
 
-                        cursor.style.left = `${cursorX}px`;
-                        cursor.style.top = `${cursorY}px`;
+                            if (noseMoving) {
+                                // --- NOSE MODE: coarse cursor movement ---
+                                noseStableFrames = 0;
+
+                                cursorX += smoothDeltaX * sensitivity;
+                                cursorY += smoothDeltaY * sensitivity;
+
+                                status.innerText = "Nose Tracking";
+                            } else {
+                                // Nose is still — count stable frames
+                                noseStableFrames++;
+
+                                if (noseStableFrames >= noseStableThreshold) {
+                                    // --- BLINK DETECTION MODE ---
+                                    if (results.faceBlendshapes && results.faceBlendshapes.length > 0) {
+                                        const blendshapes = results.faceBlendshapes[0].categories;
+                                        const getScore = (name) => blendshapes.find(c => c.categoryName === name)?.score || 0;
+
+                                        const blinkLeft = getScore("eyeBlinkLeft");
+                                        const blinkRight = getScore("eyeBlinkRight");
+                                        const blinkDetected = blinkLeft > blinkThreshold || blinkRight > blinkThreshold;
+
+                                        if (blinkDetected && !isBlinking) {
+                                            isBlinking = true;
+                                            fireBullet(cursorX, cursorY);
+                                            status.innerText = "💥 FIRE!";
+                                        } else if (!blinkDetected) {
+                                            isBlinking = false;
+                                            status.innerText = "Ready — Blink to Shoot 🎯";
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Clamp to screen bounds
+                            cursorX = Math.max(0, Math.min(window.innerWidth, cursorX));
+                            cursorY = Math.max(0, Math.min(window.innerHeight, cursorY));
+
+                            cursor.style.left = `${cursorX}px`;
+                            cursor.style.top = `${cursorY}px`;
+                        }
                     }
-
-                    if (!isCalibrating) status.innerText = "Tracking Active";
                 } else {
                     status.innerText = "Face Not Detected";
                 }
