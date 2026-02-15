@@ -114,7 +114,10 @@
             position: relative;
             overflow: hidden;
             box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
-            transition: height 0.3s, margin-top 0.3s;
+            transition: height 0.15s, margin-top 0.15s;
+        }
+
+        .eye.left {
             transform: scaleY(var(--eye-l-open, 1));
         }
 
@@ -130,8 +133,9 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate(calc(-50% + var(--pupil-x, 0px)), calc(-50% + var(--pupil-y, 0px)));
             pointer-events: none;
+            transition: transform 0.08s ease-out;
         }
 
         .eyebrow {
@@ -1199,10 +1203,10 @@
         <div class="eyebrow left"></div>
         <div class="eyebrow right"></div>
         <div class="eyes-container">
-            <div class="eye">
+            <div class="eye left">
                 <div class="pupil"></div>
             </div>
-            <div class="eye">
+            <div class="eye right">
                 <div class="pupil"></div>
             </div>
         </div>
@@ -1367,7 +1371,21 @@
             webcamRunning = true;
             webcamButton.innerText = "🛑 Stop Tracking";
             webcamButton.classList.add('active');
-            // Removed display: block here
+
+            // Clean up mouse-driven state so face mirror has full control
+            stopSearching();
+            stopPeekingBehavior();
+            clearTimeout(searchTimeout);
+            clearInterval(gazeInterval);
+            gazeInterval = null;
+            face.classList.remove('sad', 'angry', 'jealous', 'crying',
+                'demanding', 'suspicious', 'upset', 'vomiting',
+                'super-happy', 'searching', 'sneeze-buildup', 'sneezing',
+                'cuddling', 'sleeping');
+            stopZzzBehavior();
+
+            // Clear any inline pupil transforms so CSS variables take over
+            document.querySelectorAll('.pupil').forEach(p => p.style.transform = '');
 
             const constraints = { video: true };
             navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
@@ -1402,96 +1420,116 @@
                 lastVideoTime = video.currentTime;
                 const results = faceLandmarker.detectForVideo(video, startTimeMs);
 
-                // Check if face is detected
                 if (results.faceLandmarks && results.faceLandmarks.length > 0 &&
                     results.faceBlendshapes && results.faceBlendshapes.length > 0) {
+
+                    // --- FACE MIRROR MODE (Direct Style Manipulation) ---
+                    // Clear any mood states
+                    if (isSleeping) {
+                        isSleeping = false;
+                        face.classList.remove('sleeping');
+                        stopZzzBehavior();
+                    }
+                    face.className = 'face'; // Strip ALL classes, keep only 'face'
+                    face.style.backgroundColor = '#ffd1dc';
 
                     const blendshapes = results.faceBlendshapes[0].categories;
                     const getScore = (name) => blendshapes.find(c => c.categoryName === name)?.score || 0;
 
-                    // Get eye direction blendshapes
-                    const eyeLookDownLeft = getScore('eyeLookDownLeft');
-                    const eyeLookDownRight = getScore('eyeLookDownRight');
-                    const eyeLookInLeft = getScore('eyeLookInLeft');
-                    const eyeLookInRight = getScore('eyeLookInRight');
-                    const eyeLookOutLeft = getScore('eyeLookOutLeft');
-                    const eyeLookOutRight = getScore('eyeLookOutRight');
-                    const eyeLookUpLeft = getScore('eyeLookUpLeft');
-                    const eyeLookUpRight = getScore('eyeLookUpRight');
+                    // ===== 1. EYE BLINK (discrete — detect blink, trigger full animation) =====
+                    const blinkL = getScore('eyeBlinkLeft');
+                    const blinkR = getScore('eyeBlinkRight');
+                    const eyes = document.querySelectorAll('.eye');
 
-                    // Calculate total gaze deviation (higher = looking away from camera)
-                    const gazeDeviation = (
-                        eyeLookDownLeft + eyeLookDownRight +
-                        eyeLookInLeft + eyeLookInRight +
-                        eyeLookOutLeft + eyeLookOutRight +
-                        eyeLookUpLeft + eyeLookUpRight
-                    ) / 8;
-
-                    // Get smile blendshapes
-                    const smileL = getScore('mouthSmileLeft');
-                    const smileR = getScore('mouthSmileRight');
-                    const averageSmile = (smileL + smileR) / 2;
-
-                    console.log(`👁️ Gaze deviation: ${gazeDeviation.toFixed(3)}, Smile: ${averageSmile.toFixed(3)}`);
-
-                    // If gaze deviation is LOW (< 0.15), user is looking at camera/screen (very sensitive)
-                    if (gazeDeviation < 0.15) {
-                        console.log("😊 LOOKING AT SCREEN - Making Dinky happy!");
-                        // User is looking at screen - Wake up if sleeping!
-                        if (isSleeping) {
-                            isSleeping = false;
-                            face.classList.remove('sleeping');
-                            stopZzzBehavior();
-                        }
-                        // Make Dinky HAPPY!
-                        face.classList.remove('sad', 'angry', 'jealous', 'crying', 'demanding', 'suspicious', 'upset', 'vomiting');
-
-                        // Smile logic: More dynamic and intense!
-                        if (averageSmile > 0.2) {
-                            face.classList.add('super-happy');
-                            face.style.backgroundColor = '#ffc0cb'; // Darker pink for big smile
-
-                            // Dynamic scaling based on smile intensity
-                            const extraW = averageSmile * 60; // Up to +60px width
-                            const extraH = averageSmile * 40; // Up to +40px height
-
-                            document.documentElement.style.setProperty('--mouth-w', `${100 + extraW}px`);
-                            document.documentElement.style.setProperty('--mouth-h', `${40 + extraH}px`);
-                            document.documentElement.style.setProperty('--mouth-br', '0 0 80px 80px');
-                            document.documentElement.style.setProperty('--mouth-bt', `${6 + averageSmile * 4}px solid #ff6b81`); // Pulsing border
-                        } else {
-                            // Normal happy / Neutral
-                            face.classList.remove('super-happy');
-                            face.style.backgroundColor = '#ffd1dc'; // Standard pink
-                            document.documentElement.style.setProperty('--mouth-w', '100px');
-                            document.documentElement.style.setProperty('--mouth-h', '40px');
-                            document.documentElement.style.setProperty('--mouth-br', '0 0 50px 50px');
-                            document.documentElement.style.setProperty('--mouth-bt', '6px solid #ff8fa3'); // Normal smile
-                        }
-
-                        // Happy eyes
-                        document.documentElement.style.setProperty('--eye-l-open', '1');
-                        document.documentElement.style.setProperty('--eye-r-open', '1');
-
-                        // Neutral eyebrows
-                        document.documentElement.style.setProperty('--brow-l-rot', '0deg');
-                        document.documentElement.style.setProperty('--brow-r-rot', '0deg');
-                    } else {
-                        console.log("� LOOKING AWAY - Making Dinky sleep");
-                        // User is looking away - Make Dinky SLEEP!
-                        if (!isSleeping) {
-                            isSleeping = true;
-                            face.classList.remove('angry', 'jealous', 'crying', 'demanding', 'suspicious', 'upset', 'vomiting', 'sad');
-                            face.classList.add('sleeping');
-                            startZzzBehavior();
+                    // Detect left eye blink event
+                    if (blinkL > 0.4 && !window._blinkingL) {
+                        window._blinkingL = true;
+                        if (eyes[0]) {
+                            eyes[0].style.transition = 'transform 0.1s';
+                            eyes[0].style.transform = 'scaleY(0.05)';
+                            setTimeout(() => { eyes[0].style.transform = 'scaleY(1)'; }, 150);
+                            setTimeout(() => { window._blinkingL = false; }, 400);
                         }
                     }
+
+                    // Detect right eye blink event
+                    if (blinkR > 0.4 && !window._blinkingR) {
+                        window._blinkingR = true;
+                        if (eyes[1]) {
+                            eyes[1].style.transition = 'transform 0.1s';
+                            eyes[1].style.transform = 'scaleY(0.05)';
+                            setTimeout(() => { eyes[1].style.transform = 'scaleY(1)'; }, 150);
+                            setTimeout(() => { window._blinkingR = false; }, 400);
+                        }
+                    }
+
+                    // ===== 2. EYEBROW RAISE/FROWN =====
+                    const browInner = getScore('browInnerUp');
+                    const browOuterL = getScore('browOuterUpLeft');
+                    const browOuterR = getScore('browOuterUpRight');
+                    const browDownL = getScore('browDownLeft');
+                    const browDownR = getScore('browDownRight');
+
+                    const browRotL = -(browInner * 15 + browOuterL * 10) + browDownL * 20;
+                    const browRotR = (browInner * 15 + browOuterR * 10) - browDownR * 20;
+                    const browLiftL = (browInner + browOuterL) * 15;
+                    const browLiftR = (browInner + browOuterR) * 15;
+
+                    const eyebrows = document.querySelectorAll('.eyebrow');
+                    if (eyebrows[0]) eyebrows[0].style.transform = `rotate(${browRotL}deg) translateY(-${browLiftL}px)`;
+                    if (eyebrows[1]) eyebrows[1].style.transform = `rotate(${browRotR}deg) translateY(-${browLiftR}px)`;
+
+                    // ===== 3. MOUTH =====
+                    const jawOpen = getScore('jawOpen');
+                    const smileL = getScore('mouthSmileLeft');
+                    const smileR = getScore('mouthSmileRight');
+                    const smile = (smileL + smileR) / 2;
+
+                    const mouth = document.querySelector('.mouth');
+                    if (mouth) {
+                        if (jawOpen > 0.12) {
+                            // Mouth open — oval shape
+                            const mw = 30 + jawOpen * 50;
+                            const mh = 10 + jawOpen * 60;
+                            mouth.style.width = `${mw}px`;
+                            mouth.style.height = `${mh}px`;
+                            mouth.style.borderRadius = '50%';
+                            mouth.style.border = '3px solid #8b5a3a';
+                            mouth.style.borderBottom = '3px solid #8b5a3a';
+                            mouth.style.backgroundColor = '#6b4423';
+                        } else if (smile > 0.15) {
+                            // Smiling — wide curve
+                            const extraW = smile * 60;
+                            const extraH = smile * 30;
+                            mouth.style.width = `${80 + extraW}px`;
+                            mouth.style.height = `${30 + extraH}px`;
+                            mouth.style.borderRadius = '0 0 80px 80px';
+                            mouth.style.border = 'none';
+                            mouth.style.borderBottom = `${5 + smile * 4}px solid #ff6b81`;
+                            mouth.style.backgroundColor = 'transparent';
+                        } else {
+                            // Neutral
+                            mouth.style.width = '80px';
+                            mouth.style.height = '35px';
+                            mouth.style.borderRadius = '0 0 50px 50px';
+                            mouth.style.border = 'none';
+                            mouth.style.borderBottom = '4px solid #cc8866';
+                            mouth.style.backgroundColor = 'transparent';
+                        }
+                    }
+
+                    // ===== 4. CHEEKS (smile blush) =====
+                    const cheeks = document.querySelectorAll('.cheek');
+                    cheeks.forEach(c => c.style.opacity = smile > 0.15 ? Math.min(1, smile * 1.5) : '0');
+
+                    console.log(`🪞 Mirror | blinkL:${blinkL.toFixed(2)} blinkR:${blinkR.toFixed(2)} jaw:${jawOpen.toFixed(2)} smile:${smile.toFixed(2)}`);
+
                 } else {
-                    console.log("❌ NO FACE DETECTED - Making Dinky sleep");
-                    // No face - also sleep
+                    // No face detected — go to sleep
                     if (!isSleeping) {
                         isSleeping = true;
-                        face.classList.remove('angry', 'jealous', 'crying', 'demanding', 'suspicious', 'upset', 'vomiting', 'sad');
+                        face.classList.remove('angry', 'jealous', 'crying', 'demanding',
+                            'suspicious', 'upset', 'vomiting', 'sad');
                         face.classList.add('sleeping');
                         startZzzBehavior();
                     }
@@ -1763,11 +1801,11 @@
         // ... (lookAtUser and startIdleBehavior remain same)
 
         function lookAtUser() {
-            if (isSleeping || isVomiting) return; // Allow looking at user even during webcam
+            if (isSleeping || isVomiting) return;
             const pupils = document.querySelectorAll('.pupil');
             pupils.forEach(pupil => {
-                // Reset to center
-                pupil.style.transform = `translate(-50%, -50%)`;
+                // Clear inline style so CSS variables take over during webcam
+                pupil.style.transform = '';
             });
         }
 
@@ -1827,8 +1865,8 @@
         }
 
         document.addEventListener('mousemove', (e) => {
-            // If sleeping or vomiting, ignore ALL interaction
-            if (isSleeping || isVomiting) return;
+            // If sleeping, vomiting, or face tracking via webcam, ignore mouse interaction
+            if (isSleeping || isVomiting || webcamRunning) return;
 
             const x = e.clientX;
             const y = e.clientY;
