@@ -526,7 +526,7 @@
             return false;
         }
 
-        // --- Explosion Particle System ---
+        // --- Explosion Particle System (Optimized) ---
         let explosionParticles = [];
 
         function spawnExplosion(cx, cy, color) {
@@ -539,69 +539,88 @@
                     vy: Math.sin(angle) * speed,
                     radius: 4 + Math.random() * 8,
                     color: color,
-                    life: 1.0, // 1.0 → 0.0
-                    decay: 0.01 + Math.random() * 0.02
+                    life: 1.0,
+                    decay: 0.01 + Math.random() * 0.02,
+                    alive: true
                 });
             }
         }
 
         function updateAndDrawExplosion() {
-            for (let i = explosionParticles.length - 1; i >= 0; i--) {
+            let writeIdx = 0;
+            for (let i = 0; i < explosionParticles.length; i++) {
                 const p = explosionParticles[i];
                 p.x += p.vx;
                 p.y += p.vy;
-                p.vx *= 0.96; // friction
+                p.vx *= 0.96;
                 p.vy *= 0.96;
-                p.vy += 0.15; // gravity
+                p.vy += 0.15;
                 p.life -= p.decay;
 
-                if (p.life <= 0) {
-                    explosionParticles.splice(i, 1);
-                    continue;
-                }
+                if (p.life <= 0) continue; // Skip dead particles
 
+                // Cheap glow: draw a larger faded circle behind
+                const r = p.radius * p.life;
+                ctx.globalAlpha = p.life * 0.3;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, r * 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core particle
                 ctx.globalAlpha = p.life;
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
-                ctx.fillStyle = p.color;
-                ctx.shadowColor = p.color;
-                ctx.shadowBlur = 15;
+                ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.shadowBlur = 0;
+
+                // Keep alive — compact array in-place
+                explosionParticles[writeIdx++] = p;
             }
+            explosionParticles.length = writeIdx; // Trim dead particles (no splice!)
             ctx.globalAlpha = 1.0;
         }
 
-        // --- Boom Sound (Web Audio API) ---
-        function playBoom() {
+        // --- Boom Sound (Optimized — reuse AudioContext, pre-generated noise) ---
+        // Pre-generate noise buffer once using the existing audioCtx
+        let boomNoiseBuffer = null;
+        (function pregenNoise() {
             try {
-                const actx = new (window.AudioContext || window.webkitAudioContext)();
-                // Low rumble
-                const osc1 = actx.createOscillator();
-                const gain1 = actx.createGain();
-                osc1.type = 'sine';
-                osc1.frequency.setValueAtTime(80, actx.currentTime);
-                osc1.frequency.exponentialRampToValueAtTime(20, actx.currentTime + 0.5);
-                gain1.gain.setValueAtTime(1.0, actx.currentTime);
-                gain1.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.6);
-                osc1.connect(gain1).connect(actx.destination);
-                osc1.start();
-                osc1.stop(actx.currentTime + 0.6);
-
-                // Noise burst (crackle)
-                const bufferSize = actx.sampleRate * 0.3;
-                const noiseBuffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
-                const data = noiseBuffer.getChannelData(0);
+                const sr = audioCtx.sampleRate;
+                const bufferSize = Math.floor(sr * 0.3);
+                boomNoiseBuffer = audioCtx.createBuffer(1, bufferSize, sr);
+                const data = boomNoiseBuffer.getChannelData(0);
                 for (let i = 0; i < bufferSize; i++) {
                     data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
                 }
-                const noise = actx.createBufferSource();
-                noise.buffer = noiseBuffer;
-                const noiseGain = actx.createGain();
-                noiseGain.gain.setValueAtTime(0.6, actx.currentTime);
-                noiseGain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.3);
-                noise.connect(noiseGain).connect(actx.destination);
-                noise.start();
+            } catch (e) { /* ignore */ }
+        })();
+
+        function playBoom() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                // Low rumble oscillator
+                const osc1 = audioCtx.createOscillator();
+                const gain1 = audioCtx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(80, audioCtx.currentTime);
+                osc1.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.5);
+                gain1.gain.setValueAtTime(1.0, audioCtx.currentTime);
+                gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+                osc1.connect(gain1).connect(audioCtx.destination);
+                osc1.start();
+                osc1.stop(audioCtx.currentTime + 0.6);
+
+                // Noise burst from pre-generated buffer
+                if (boomNoiseBuffer) {
+                    const noise = audioCtx.createBufferSource();
+                    noise.buffer = boomNoiseBuffer;
+                    const noiseGain = audioCtx.createGain();
+                    noiseGain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    noise.connect(noiseGain).connect(audioCtx.destination);
+                    noise.start();
+                }
             } catch (e) { /* ignore audio errors */ }
         }
 
@@ -734,9 +753,9 @@
                     y = 0.5 + 0.08 * Math.sin(st * 0.4);
                     break;
 
-                case 1: // Horizontal bounce — reverses every 2.25s with gentle vertical drift
-                    x = 0.5 + amp * (triangleWave(st, 4.5) * 2 - 1);
-                    y = 0.5 + 0.08 * Math.sin(st * 0.5);
+                case 1: // Figure-8 (lemniscate) — smooth infinity loop
+                    x = 0.5 + amp * Math.sin(st * 0.8);
+                    y = 0.5 + amp * 0.6 * Math.sin(st * 1.6);
                     break;
 
                 case 2: // Diagonal bounce — X reverses every 5.5s, Y reverses every 3s

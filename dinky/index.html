@@ -1,0 +1,2171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dinky and the cursor</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            font-family: sans-serif;
+            transition: background-color 0.5s;
+            overflow: hidden;
+            --eye-l-open: 1;
+            --eye-r-open: 1;
+            --mouth-h: 50px;
+            --mouth-w: 100px;
+            --mouth-br: 0 0 50px 50px;
+            --mouth-bt: 5px solid #cc8866;
+            --brow-l-rot: 0deg;
+            --brow-r-rot: 0deg;
+            --face-shake-x: 0px;
+            --face-shake-y: 0px;
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            color: #333;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn.active {
+            background: #4caf50;
+            color: white;
+        }
+
+        #webcam-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 160px;
+            height: 120px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 3px solid white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            display: none !important;
+            /* Completely hide the preview */
+            z-index: 100;
+        }
+
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            /* Mirror camera */
+        }
+
+        .face {
+            width: 300px;
+            height: 300px;
+            background-color: #ffcc99;
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s;
+        }
+
+        .eyes-container {
+            display: flex;
+            gap: 20px;
+            position: absolute;
+            top: 35%;
+            z-index: 2;
+        }
+
+        .eye {
+            width: 80px;
+            height: 80px;
+            background-color: white;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: height 0.15s, margin-top 0.15s;
+        }
+
+        .eye.left {
+            transform: scaleY(var(--eye-l-open, 1));
+        }
+
+        .eye.right {
+            transform: scaleY(var(--eye-r-open, 1));
+        }
+
+        .pupil {
+            width: 30px;
+            height: 30px;
+            background-color: #333;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(calc(-50% + var(--pupil-x, 0px)), calc(-50% + var(--pupil-y, 0px)));
+            pointer-events: none;
+            transition: transform 0.08s ease-out;
+        }
+
+        .eyebrow {
+            width: 80px;
+            height: 15px;
+            background-color: #5d4037;
+            position: absolute;
+            top: 25%;
+            border-radius: 10px;
+            transition: transform 0.3s, top 0.3s;
+            z-index: 3;
+        }
+
+        .eyebrow.left {
+            left: 55px;
+            transform: rotate(var(--brow-l-rot, 0deg));
+        }
+
+        .eyebrow.right {
+            right: 55px;
+            transform: rotate(var(--brow-r-rot, 0deg));
+        }
+
+        .mouth {
+            width: 100px;
+            height: 50px;
+            border-bottom: 5px solid #cc8866;
+            border-radius: 0 0 50px 50px;
+            position: absolute;
+            bottom: 25%;
+            transition: all 0.1s;
+            height: var(--mouth-h);
+            width: var(--mouth-w);
+            border-radius: var(--mouth-br);
+            border-bottom: var(--mouth-bt);
+        }
+
+        .tear {
+            width: 15px;
+            height: 15px;
+            background-color: #3498db;
+            border-radius: 0 50% 50% 50%;
+            position: absolute;
+            top: 60%;
+            transform: rotate(45deg);
+            opacity: 0;
+            transition: opacity 0.3s, top 1s;
+        }
+
+        .tear.left {
+            left: 80px;
+        }
+
+        .tear.right {
+            right: 80px;
+        }
+
+        .cheek {
+            width: 40px;
+            height: 25px;
+            background-color: #ff8fa3;
+            border-radius: 50%;
+            position: absolute;
+            top: 55%;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 1;
+        }
+
+        .cheek.left {
+            left: 50px;
+        }
+
+        .cheek.right {
+            right: 50px;
+        }
+
+        /* Super Happy State - More Interactive */
+        .face.super-happy {
+            animation: pulse-happy 1.5s infinite ease-in-out;
+        }
+
+        .face.super-happy .cheek {
+            opacity: 0.8;
+            transform: scale(1.2);
+        }
+
+        @keyframes pulse-happy {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 15px 35px rgba(255, 192, 203, 0.4);
+            }
+
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 25px 50px rgba(255, 192, 203, 0.6);
+            }
+        }
+
+        /* Angry Expression - Intense */
+        .face.angry {
+            background-color: #ff4d4d;
+            background: radial-gradient(circle at center, #ff6b6b 0%, #ff0000 100%);
+            animation: tremble 0.1s infinite;
+        }
+
+        .face.angry .eyebrow.left {
+            transform: rotate(35deg) scaleX(1.1);
+            top: 30%;
+            background-color: #3e2723;
+        }
+
+        .face.angry .eyebrow.right {
+            transform: rotate(-35deg) scaleX(1.1);
+            top: 30%;
+            background-color: #3e2723;
+        }
+
+        .face.angry .eye {
+            height: 40px;
+            margin-top: 20px;
+            border-top: 3px solid #3e2723;
+        }
+
+        .face.angry .pupil {
+            background-color: #000;
+            width: 25px;
+            height: 25px;
+        }
+
+        .face.angry .mouth {
+            width: 80px;
+            height: 10px;
+            border-bottom: none;
+            border-top: 6px solid #3e2723;
+            border-radius: 50% 50% 0 0;
+            bottom: 25%;
+            transform: rotate(180deg);
+            /* Flip it upside down for a grit look */
+        }
+
+        /* Anger Mark 💢 */
+        .anger-mark {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            width: 40px;
+            height: 40px;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .face.angry .anger-mark {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .anger-mark:before,
+        .anger-mark:after {
+            content: '';
+            position: absolute;
+            background-color: #e53935;
+        }
+
+        .anger-mark:before {
+            width: 100%;
+            height: 6px;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%) rotate(45deg);
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .anger-mark:after {
+            width: 6px;
+            height: 100%;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%) rotate(45deg);
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        @keyframes tremble {
+            0% {
+                transform: translate(1px, 1px) rotate(0deg);
+            }
+
+            10% {
+                transform: translate(-1px, -2px) rotate(-1deg);
+            }
+
+            20% {
+                transform: translate(-3px, 0px) rotate(1deg);
+            }
+
+            30% {
+                transform: translate(3px, 2px) rotate(0deg);
+            }
+
+            40% {
+                transform: translate(1px, -1px) rotate(1deg);
+            }
+
+            50% {
+                transform: translate(-1px, 2px) rotate(-1deg);
+            }
+
+            60% {
+                transform: translate(-3px, 1px) rotate(0deg);
+            }
+
+            70% {
+                transform: translate(3px, 1px) rotate(-1deg);
+            }
+
+            80% {
+                transform: translate(-1px, -1px) rotate(1deg);
+            }
+
+            90% {
+                transform: translate(1px, 2px) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(1px, -2px) rotate(-1deg);
+            }
+        }
+
+        /* Sad Expression */
+        .face.sad {
+            background-color: #e0e0e0;
+        }
+
+        .face.sad .eyebrow.left {
+            transform: rotate(-15deg);
+            top: 22%;
+        }
+
+        .face.sad .eyebrow.right {
+            transform: rotate(15deg);
+            top: 22%;
+        }
+
+        .face.sad .mouth {
+            width: 60px;
+            height: 20px;
+            border-bottom: none;
+            border-top: 5px solid #cc8866;
+            border-radius: 30px 30px 0 0;
+            bottom: 22%;
+        }
+
+        .face.sad .tear {
+            opacity: 1;
+            animation: cry 2s infinite;
+        }
+
+        /* Jealous Expression (Top Left/Center) */
+        .face.jealous {
+            background-color: #fffacd;
+        }
+
+        .face.jealous .eyebrow.left {
+            transform: rotate(5deg) translateY(5px);
+        }
+
+        .face.jealous .eyebrow.right {
+            transform: rotate(-15deg);
+        }
+
+        .face.jealous .eye {
+            height: 60px;
+            /* Squint */
+            margin-top: 10px;
+        }
+
+        .face.jealous .mouth {
+            width: 20px;
+            height: 10px;
+            border-bottom: none;
+            border-top: 3px solid #8b5a3a;
+            border-radius: 50% 50% 0 0;
+            bottom: 30%;
+        }
+
+        /* Crying Expression (Top Right) */
+        .face.crying {
+            background-color: #dbeeff;
+        }
+
+        .face.crying .eyebrow.left {
+            transform: rotate(-20deg);
+            top: 20%;
+        }
+
+        .face.crying .eyebrow.right {
+            transform: rotate(20deg);
+            top: 20%;
+        }
+
+        .face.crying .mouth {
+            width: 40px;
+            height: 35px;
+            border-radius: 40% 40% 50% 50%;
+            background-color: #6b4423;
+            border: none;
+            bottom: 20%;
+        }
+
+        .face.crying .tear {
+            opacity: 1;
+            animation: cry 0.8s infinite;
+        }
+
+        /* Cuddling (Head Hover) */
+        .face.cuddling {
+            background-color: #ffd1dc;
+        }
+
+        .face.cuddling .cheek {
+            opacity: 0.6;
+        }
+
+        .face.cuddling .eye {
+            height: 10px;
+            margin-top: 35px;
+            border-radius: 5px;
+        }
+
+        .face.cuddling .pupil {
+            display: none;
+        }
+
+        .face.cuddling .mouth {
+            width: 80px;
+            height: 40px;
+            border-bottom: 6px solid #d45d79;
+            border-radius: 0 0 50px 50px;
+            bottom: 28%;
+        }
+
+        .face.cuddling .eyebrow {
+            top: 28%;
+        }
+
+        /* Blinking */
+        .face.blinking .eye {
+            height: 5px;
+            margin-top: 38px;
+            border-radius: 2px;
+        }
+
+        @keyframes cry {
+            0% {
+                top: 60%;
+                opacity: 1;
+            }
+
+            100% {
+                top: 80%;
+                opacity: 0;
+            }
+        }
+
+        /* Demanding Expression (Stopped Touching) */
+        .face.demanding {
+            background-color: #ffd1dc;
+            animation: nudge 0.5s infinite alternate;
+        }
+
+        .face.demanding .eyebrow {
+            top: 20%;
+        }
+
+        .face.demanding .eyebrow.left {
+            transform: rotate(-10deg);
+        }
+
+        .face.demanding .eyebrow.right {
+            transform: rotate(10deg);
+        }
+
+        .face.demanding .eye {
+            height: 90px;
+            width: 90px;
+            margin-top: -5px;
+        }
+
+        .face.demanding .mouth {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 4px solid #cc8866;
+            background-color: transparent;
+            bottom: 30%;
+        }
+
+        /* Animation for Demanding */
+        @keyframes nudge {
+            0% {
+                transform: translateY(0);
+            }
+
+            100% {
+                transform: translateY(-5px);
+            }
+        }
+
+        /* Sneezing Buildup */
+        .face.sneeze-buildup {
+            background-color: #ffe0e0;
+            animation: buildup 0.2s infinite;
+        }
+
+        .face.sneeze-buildup .eye {
+            height: 2px;
+            margin-top: 40px;
+        }
+
+        .face.sneeze-buildup .mouth {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 3px solid #8b5a3a;
+            bottom: 35%;
+        }
+
+        /* Sneezing Release */
+        .face.sneezing {
+            background-color: #ffcccc;
+            animation: sneeze 0.3s;
+        }
+
+        .face.sneezing .eye {
+            height: 2px;
+            margin-top: 45px;
+            width: 90px;
+        }
+
+        .face.sneezing .mouth {
+            width: 80px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #6b4423;
+            bottom: 25%;
+            border: none;
+        }
+
+        @keyframes buildup {
+            0% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            25% {
+                transform: translateY(1px) rotate(1deg);
+            }
+
+            50% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            75% {
+                transform: translateY(-1px) rotate(-1deg);
+            }
+
+            100% {
+                transform: translateY(0) rotate(0deg);
+            }
+        }
+
+        @keyframes sneeze {
+            0% {
+                transform: scale(1);
+            }
+
+            40% {
+                transform: scale(1.2) translateY(20px);
+            }
+
+            100% {
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* Sleeping State */
+        .face.sleeping {
+            background-color: #e6e6fa;
+            animation: breathing 4s ease-in-out infinite;
+        }
+
+        .face.sleeping .eye {
+            height: 2px;
+            margin-top: 40px;
+            border-radius: 0;
+            width: 80px;
+        }
+
+        .face.sleeping .pupil {
+            display: none;
+        }
+
+        .face.sleeping .mouth {
+            width: 40px;
+            height: 20px;
+            border-radius: 50%;
+            border-bottom: 4px solid #8b5a3a;
+            bottom: 30%;
+            background-color: transparent;
+        }
+
+        .face.sleeping .eyebrow {
+            top: 25%;
+            transform: rotate(0deg);
+        }
+
+        @keyframes breathing {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+        }
+
+        /* Entrance Animation */
+        .face.drop-in {
+            animation: dropIn 1.2s cubic-bezier(0.25, 1.5, 0.5, 1) forwards;
+        }
+
+        @keyframes dropIn {
+            0% {
+                transform: translateY(-120vh) scale(0.5);
+                opacity: 0;
+            }
+
+            60% {
+                transform: translateY(20px) scale(1.1);
+                opacity: 1;
+            }
+
+            80% {
+                transform: translateY(-10px) scale(0.95);
+            }
+
+            100% {
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Vomit/Sick State - Nauseated 🤢 */
+        .face.vomiting {
+            background-color: #9acd32;
+            /* Yellowish green like 🤢 */
+            animation: sick-shake 0.3s infinite;
+        }
+
+        .face.vomiting .eyebrow {
+            top: 22%;
+        }
+
+        .face.vomiting .eyebrow.left {
+            transform: rotate(-20deg);
+        }
+
+        .face.vomiting .eyebrow.right {
+            transform: rotate(20deg);
+        }
+
+        .face.vomiting .eye {
+            /* Open eyes for rolling pupil effect */
+            height: 80px;
+            width: 80px;
+            margin-top: 0;
+            animation: none;
+        }
+
+        .face.vomiting .eye:first-child .pupil {
+            animation: eye-roll 0.5s linear infinite;
+        }
+
+        .face.vomiting .eye:last-child .pupil {
+            animation: eye-roll-ccw 0.5s linear infinite;
+        }
+
+        .face.vomiting .mouth {
+            width: 60px;
+            height: 8px;
+            border: none;
+            background: linear-gradient(to right,
+                    transparent 0%,
+                    #6b8e23 5%,
+                    #6b8e23 95%,
+                    transparent 100%);
+            bottom: 28%;
+            left: 50%;
+            transform: translateX(-50%);
+            position: absolute;
+            clip-path: polygon(0% 50%,
+                    10% 20%,
+                    20% 50%,
+                    30% 80%,
+                    40% 50%,
+                    50% 20%,
+                    60% 50%,
+                    70% 80%,
+                    80% 50%,
+                    90% 20%,
+                    100% 50%,
+                    90% 50%,
+                    80% 50%,
+                    70% 50%,
+                    60% 50%,
+                    50% 50%,
+                    40% 50%,
+                    30% 50%,
+                    20% 50%,
+                    10% 50%);
+        }
+
+        @keyframes queasy-mouth {
+
+            0%,
+            100% {
+                transform: translateX(-50%) scaleX(1);
+            }
+
+            50% {
+                transform: translateX(-50%) scaleX(0.95);
+            }
+        }
+
+        /* Suspicious/Thief State */
+        .face.suspicious {
+            background-color: #f1f1f1;
+        }
+
+        .face.suspicious .eyebrow.left {
+            transform: rotate(-10deg) translateY(-5px);
+            top: 24%;
+        }
+
+        .face.suspicious .eyebrow.right {
+            transform: rotate(-10deg) translateY(5px);
+            top: 26%;
+        }
+
+        .face.suspicious .mouth {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 3px solid #8b5a3a;
+            background-color: transparent;
+            bottom: 28%;
+            transform: translateX(15px);
+            /* Whistling to side */
+            border-top: 3px solid #8b5a3a;
+            /* Ensure full border for circle */
+            border-bottom: 3px solid #8b5a3a;
+        }
+
+        /* Adjust eyes slightly for shifty look */
+        .face.suspicious .eye {
+            height: 70px;
+        }
+
+        @keyframes sick-shake {
+
+            0%,
+            100% {
+                transform: translateX(0) rotate(0deg);
+            }
+
+            25% {
+                transform: translateX(-5px) rotate(-5deg);
+            }
+
+            75% {
+                transform: translateX(5px) rotate(5deg);
+            }
+        }
+
+        @keyframes heave {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+        }
+
+        /* Zzz Animation */
+        .zzz-container {
+            position: absolute;
+            top: 20px;
+            right: 60px;
+            width: 50px;
+            height: 100px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .zzz {
+            position: absolute;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+            font-weight: bold;
+            color: #4a4a4a;
+            opacity: 0;
+            animation: floatZ 2.5s linear forwards;
+        }
+
+        @keyframes floatZ {
+            0% {
+                transform: translateY(0) translateX(0) scale(0.5);
+                opacity: 0;
+            }
+
+            15% {
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: translateY(-80px) translateX(30px) scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        /* Question Mark Animation (for searching) */
+        .question-container {
+            position: absolute;
+            top: 20px;
+            right: 60px;
+            width: 50px;
+            height: 100px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .question {
+            position: absolute;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+            font-weight: bold;
+            color: #5a5a5a;
+            opacity: 0;
+            animation: floatQuestion 2.5s linear forwards;
+        }
+
+        @keyframes floatQuestion {
+            0% {
+                transform: translateY(0) translateX(0) scale(0.5);
+                opacity: 0;
+            }
+
+            15% {
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: translateY(-80px) translateX(30px) scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        @keyframes eye-roll {
+            from {
+                transform: translate(-50%, -50%) rotate(0deg) translateX(25px) rotate(0deg);
+            }
+
+            to {
+                transform: translate(-50%, -50%) rotate(360deg) translateX(25px) rotate(-360deg);
+            }
+        }
+
+        @keyframes eye-roll-ccw {
+            from {
+                transform: translate(-50%, -50%) rotate(0deg) translateX(25px) rotate(0deg);
+            }
+
+            to {
+                transform: translate(-50%, -50%) rotate(-360deg) translateX(25px) rotate(360deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Searching State (Telescopic Eye) */
+        .face.searching {
+            background-color: #fef9f3;
+        }
+
+        .face.searching .eyebrow {
+            top: 24%;
+        }
+
+        .face.searching .eyebrow.left {
+            transform: rotate(-25deg) translateY(-8px);
+            top: 20%;
+        }
+
+        .face.searching .eyebrow.right {
+            transform: rotate(0deg);
+            top: 24%;
+        }
+
+        .face.searching .eyes-container .eye:first-child {
+            height: 95px;
+            width: 95px;
+            transform: scale(1.2);
+        }
+
+        .face.searching .eyes-container .eye:first-child .pupil {
+            width: 40px;
+            height: 40px;
+        }
+
+        .face.searching .eyes-container .eye:last-child {
+            height: 75px;
+            width: 75px;
+        }
+
+        .face.searching .mouth {
+            width: 35px;
+            height: 18px;
+            border-radius: 50%;
+            border: 3px solid #8b5a3a;
+            background-color: transparent;
+            bottom: 28%;
+        }
+
+        /* Magnifying Glass Lens */
+        .magnifier {
+            position: absolute;
+            left: -150px;
+            top: 32%;
+            opacity: 0;
+            transform: scale(0.3) rotate(-30deg);
+            pointer-events: none;
+            z-index: 15;
+            transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .magnifier.active {
+            opacity: 1;
+            left: 35px;
+            transform: scale(1) rotate(0deg);
+        }
+
+        .magnifier-rim {
+            width: 110px;
+            height: 110px;
+            border: 8px solid #2a2a2a;
+            border-radius: 50%;
+            position: relative;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            box-shadow:
+                0 4px 15px rgba(0, 0, 0, 0.4),
+                inset 0 2px 5px rgba(255, 255, 255, 0.2),
+                inset 0 -2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .magnifier-glass {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%,
+                    rgba(255, 255, 255, 0.3) 0%,
+                    rgba(255, 255, 255, 0.1) 30%,
+                    rgba(135, 206, 235, 0.15) 60%,
+                    transparent 100%);
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+
+
+        /* Demanding / Begging State */
+        .face.demanding {
+            animation: begging 0.4s infinite alternate;
+            /* Bounce/Nudge */
+        }
+
+        .face.demanding .eyebrow {
+            top: 20%;
+            border-radius: 50%;
+        }
+
+        .face.demanding .eyebrow.left {
+            transform: rotate(-25deg);
+        }
+
+        .face.demanding .eyebrow.right {
+            transform: rotate(25deg);
+        }
+
+        .face.demanding .eye {
+            height: 90px;
+            /* Big Eyes */
+            width: 90px;
+        }
+
+        .face.demanding .pupil {
+            transform: translate(-50%, -50%) scale(1.3);
+            /* Big Pupils */
+        }
+
+        .face.demanding .mouth {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 3px solid #8b5a3a;
+            background: transparent;
+            bottom: 25%;
+        }
+
+        @keyframes begging {
+            from {
+                transform: translateY(0);
+            }
+
+            to {
+                transform: translateY(-10px) rotate(2deg);
+            }
+
+            /* Nudge up and tilt */
+        }
+
+        /* Sneeze Text */
+        .sneeze-text {
+            position: absolute;
+            top: 20%;
+            left: 80%;
+            /* To the side */
+            font-family: 'Comic Sans MS', sans-serif;
+            font-weight: bold;
+            font-size: 24px;
+            color: #5d4037;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 10px;
+            border: 2px solid #5d4037;
+            opacity: 0;
+            transform: scale(0.5) rotate(-10deg);
+            pointer-events: none;
+            transition: all 0.2s;
+            z-index: 20;
+        }
+
+        .sneeze-text.show {
+            opacity: 1;
+            transform: scale(1.2) rotate(10deg) translateX(20px);
+        }
+
+        /* Upset State (Post-Vomit) */
+        .face.upset {
+            background-color: #e0f0e0;
+            /* Slightly sickly pale */
+        }
+
+        .face.upset .mouth {
+            width: 50px;
+            height: 20px;
+            border-top: 3px solid #8b5a3a;
+            border-bottom: none;
+            border-radius: 50% 50% 0 0;
+            bottom: 25%;
+            animation: quiver 0.5s infinite;
+        }
+
+        @keyframes quiver {
+            0% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-2px) rotate(-1deg);
+            }
+
+            75% {
+                transform: translateX(2px) rotate(1deg);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        /* Vomit Particles */
+        .vomit-container {
+            position: absolute;
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            /* Small origin point */
+            height: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .vomit-particle {
+            position: absolute;
+            background-color: #32cd32;
+            /* Lime Green */
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: spew 0.8s ease-out forwards;
+        }
+
+        @keyframes spew {
+            0% {
+                transform: translate(-50%, 0) scale(0.5);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(calc(-50% + var(--vx)), 150px) scale(1.5);
+                /* Fall down */
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="controls">
+        <button id="webcamButton" class="btn">📹 Start Face Tracking</button>
+        <div style="font-size: 10px; color: #666;">Press 'R' to reset</div>
+    </div>
+
+    <div id="webcam-container">
+        <video id="webcam" autoplay playsinline></video>
+    </div>
+
+    <div class="face" id="face">
+        <div id="zzz-container" class="zzz-container"></div>
+        <div id="question-container" class="question-container"></div>
+        <div id="vomit-container" class="vomit-container"></div>
+        <div id="sneeze-text" class="sneeze-text">Hachzzz</div>
+        <div class="anger-mark"></div>
+        <div id="magnifier" class="magnifier">
+            <div class="magnifier-rim">
+                <div class="magnifier-glass"></div>
+            </div>
+        </div>
+        <div class="eyebrow left"></div>
+        <div class="eyebrow right"></div>
+        <div class="eyes-container">
+            <div class="eye left">
+                <div class="pupil"></div>
+            </div>
+            <div class="eye right">
+                <div class="pupil"></div>
+            </div>
+        </div>
+        <div class="cheek left"></div>
+        <div class="cheek right"></div>
+        <div class="tear left"></div>
+        <div class="tear right"></div>
+        <div class="mouth"></div>
+    </div>
+
+    <script>
+        const face = document.getElementById('face');
+        let cuddleTimeout;
+        let isTouchingHead = false;
+
+        // WebCam Logic Variables
+        let faceLandmarker;
+        let video = document.getElementById('webcam');
+        let webcamRunning = false;
+        let lastVideoTime = -1;
+
+        // Sleeping Logic Variables
+        let isSleeping = false;
+        let cuddleStartTime = null;
+        let sleepTimeout = null;
+
+        // Sneeze Logic Variables
+        let sneezeTimeout = null;
+
+        // Vomit Logic Variables
+        let isVomiting = false;
+        let lastCursorAngle = null;
+        let totalRotation = 0;
+        let spinResetTimeout = null;
+
+        // Suspicious Logic Variables
+        let isPeeking = false;
+        let peekTimeout = null;
+        let suspiciousInterval = null;
+
+        // Zzz Logic Variables
+        let zzzInterval = null;
+
+        // Vomit Particle Variables
+        let vomitInterval = null;
+
+        // Upset State Variables
+        let isUpset = false;
+        let upsetTimeout = null;
+        let upsetCureTimeout = null;
+
+        // Idle Gaze Variables
+        let lastMouseX = window.innerWidth / 2;
+        let lastMouseY = window.innerHeight / 2;
+        let idleTimer = null;
+        let gazeInterval = null;
+        let isLookingAtUser = false;
+
+        // Searching Variables
+        let isSearching = false;
+        let searchTimeout = null;
+        let lastMoveTime = Date.now();
+        let searchLookInterval = null;
+
+        function resetDinky() {
+            // Stop all intervals and timeouts
+            stopPeekingBehavior();
+            stopZzzBehavior();
+            stopQuestionBehavior();
+            stopVomitParticles();
+            clearTimeout(cuddleTimeout);
+            clearTimeout(sleepTimeout);
+            clearTimeout(sneezeTimeout);
+            clearTimeout(searchTimeout);
+            clearTimeout(spinResetTimeout);
+
+            if (upsetCureTimeout) clearTimeout(upsetCureTimeout);
+            if (upsetTimeout) clearTimeout(upsetTimeout);
+
+            // Reset states
+            isSleeping = false;
+            isVomiting = false;
+            isSearching = false;
+            isUpset = false;
+            isPeeking = false;
+            isTouchingHead = false;
+            cuddleStartTime = null;
+            totalRotation = 0;
+            lastCursorAngle = null;
+
+            // Remove all mood classes
+            face.classList.remove(
+                'angry', 'sad', 'jealous', 'crying', 'demanding',
+                'suspicious', 'cuddling', 'sneeze-buildup', 'sneezing',
+                'sleeping', 'vomiting', 'searching', 'upset', 'blinking'
+            );
+
+            // Reset UI elements
+            const magnifier = document.getElementById('magnifier');
+            if (magnifier) magnifier.classList.remove('active');
+
+            const sneezeText = document.getElementById('sneeze-text');
+            if (sneezeText) sneezeText.classList.remove('show');
+
+            // Reset eyes
+            lookAtUser();
+
+            // WebCam Reset
+            if (webcamRunning) {
+                stopWebcam();
+            }
+
+            // Reset CSS variables
+            document.documentElement.style.setProperty('--eye-l-open', '1');
+            document.documentElement.style.setProperty('--eye-r-open', '1');
+            document.documentElement.style.setProperty('--mouth-h', '50px');
+            document.documentElement.style.setProperty('--mouth-w', '100px');
+            document.documentElement.style.setProperty('--mouth-br', '0 0 50px 50px');
+            document.documentElement.style.setProperty('--mouth-bt', '5px solid #cc8866');
+            document.documentElement.style.setProperty('--brow-l-rot', '0deg');
+            document.documentElement.style.setProperty('--brow-r-rot', '0deg');
+        }
+
+        // --- WebCam Face Tracking Logic ---
+
+        async function initFaceLandmarker() {
+            const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3');
+            const { FaceLandmarker, FilesetResolver } = vision;
+
+            const filesetResolver = await FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+            );
+
+            faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+                baseOptions: {
+                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                    delegate: "GPU"
+                },
+                outputFaceBlendshapes: true,
+                runningMode: "VIDEO",
+                numFaces: 1
+            });
+
+            console.log("Face Landmarker Loaded");
+        }
+
+        const webcamButton = document.getElementById('webcamButton');
+        webcamButton.addEventListener('click', async () => {
+            if (!faceLandmarker) {
+                webcamButton.innerText = "⏳ Loading Model...";
+                await initFaceLandmarker();
+            }
+
+            if (webcamRunning === true) {
+                stopWebcam();
+            } else {
+                startWebcam();
+            }
+        });
+
+        function startWebcam() {
+            webcamRunning = true;
+            webcamButton.innerText = "🛑 Stop Tracking";
+            webcamButton.classList.add('active');
+
+            // Clean up mouse-driven state so face mirror has full control
+            stopSearching();
+            stopPeekingBehavior();
+            clearTimeout(searchTimeout);
+            clearInterval(gazeInterval);
+            gazeInterval = null;
+            face.classList.remove('sad', 'angry', 'jealous', 'crying',
+                'demanding', 'suspicious', 'upset', 'vomiting',
+                'super-happy', 'searching', 'sneeze-buildup', 'sneezing',
+                'cuddling', 'sleeping');
+            stopZzzBehavior();
+
+            // Clear any inline pupil transforms so CSS variables take over
+            document.querySelectorAll('.pupil').forEach(p => p.style.transform = '');
+
+            const constraints = { video: true };
+            navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+                video.srcObject = stream;
+                console.log("📹 Video stream started");
+                video.addEventListener("loadeddata", () => {
+                    console.log("✅ Video loaded, starting detection...");
+                    predictWebcam();
+                });
+            }).catch((error) => {
+                console.error("❌ Camera error:", error);
+                alert("Could not access camera: " + error.message);
+            });
+        }
+
+        function stopWebcam() {
+            webcamRunning = false;
+            webcamButton.innerText = "📹 Start Face Tracking";
+            webcamButton.classList.remove('active');
+            // Removed display: none here
+
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        async function predictWebcam() {
+            if (!webcamRunning) return;
+
+            let startTimeMs = performance.now();
+            if (lastVideoTime !== video.currentTime) {
+                lastVideoTime = video.currentTime;
+                const results = faceLandmarker.detectForVideo(video, startTimeMs);
+
+                if (results.faceLandmarks && results.faceLandmarks.length > 0 &&
+                    results.faceBlendshapes && results.faceBlendshapes.length > 0) {
+
+                    // --- FACE MIRROR MODE (Direct Style Manipulation) ---
+                    // Clear any mood states
+                    if (isSleeping) {
+                        isSleeping = false;
+                        face.classList.remove('sleeping');
+                        stopZzzBehavior();
+                    }
+                    face.className = 'face'; // Strip ALL classes, keep only 'face'
+                    face.style.backgroundColor = '#ffd1dc';
+
+                    const blendshapes = results.faceBlendshapes[0].categories;
+                    const getScore = (name) => blendshapes.find(c => c.categoryName === name)?.score || 0;
+
+                    // ===== 1. EYE BLINK (discrete — detect blink, trigger full animation) =====
+                    const blinkL = getScore('eyeBlinkLeft');
+                    const blinkR = getScore('eyeBlinkRight');
+                    const eyes = document.querySelectorAll('.eye');
+
+                    // Detect left eye blink event
+                    if (blinkL > 0.4 && !window._blinkingL) {
+                        window._blinkingL = true;
+                        if (eyes[0]) {
+                            eyes[0].style.transition = 'transform 0.1s';
+                            eyes[0].style.transform = 'scaleY(0.05)';
+                            setTimeout(() => { eyes[0].style.transform = 'scaleY(1)'; }, 150);
+                            setTimeout(() => { window._blinkingL = false; }, 400);
+                        }
+                    }
+
+                    // Detect right eye blink event
+                    if (blinkR > 0.4 && !window._blinkingR) {
+                        window._blinkingR = true;
+                        if (eyes[1]) {
+                            eyes[1].style.transition = 'transform 0.1s';
+                            eyes[1].style.transform = 'scaleY(0.05)';
+                            setTimeout(() => { eyes[1].style.transform = 'scaleY(1)'; }, 150);
+                            setTimeout(() => { window._blinkingR = false; }, 400);
+                        }
+                    }
+
+                    // ===== 2. EYEBROW RAISE/FROWN =====
+                    const browInner = getScore('browInnerUp');
+                    const browOuterL = getScore('browOuterUpLeft');
+                    const browOuterR = getScore('browOuterUpRight');
+                    const browDownL = getScore('browDownLeft');
+                    const browDownR = getScore('browDownRight');
+
+                    const browRotL = -(browInner * 15 + browOuterL * 10) + browDownL * 20;
+                    const browRotR = (browInner * 15 + browOuterR * 10) - browDownR * 20;
+                    const browLiftL = (browInner + browOuterL) * 15;
+                    const browLiftR = (browInner + browOuterR) * 15;
+
+                    const eyebrows = document.querySelectorAll('.eyebrow');
+                    if (eyebrows[0]) eyebrows[0].style.transform = `rotate(${browRotL}deg) translateY(-${browLiftL}px)`;
+                    if (eyebrows[1]) eyebrows[1].style.transform = `rotate(${browRotR}deg) translateY(-${browLiftR}px)`;
+
+                    // ===== 3. MOUTH =====
+                    const jawOpen = getScore('jawOpen');
+                    const smileL = getScore('mouthSmileLeft');
+                    const smileR = getScore('mouthSmileRight');
+                    const smile = (smileL + smileR) / 2;
+
+                    const mouth = document.querySelector('.mouth');
+                    if (mouth) {
+                        if (jawOpen > 0.12) {
+                            // Mouth open — oval shape
+                            const mw = 30 + jawOpen * 50;
+                            const mh = 10 + jawOpen * 60;
+                            mouth.style.width = `${mw}px`;
+                            mouth.style.height = `${mh}px`;
+                            mouth.style.borderRadius = '50%';
+                            mouth.style.border = '3px solid #8b5a3a';
+                            mouth.style.borderBottom = '3px solid #8b5a3a';
+                            mouth.style.backgroundColor = '#6b4423';
+                        } else if (smile > 0.15) {
+                            // Smiling — wide curve
+                            const extraW = smile * 60;
+                            const extraH = smile * 30;
+                            mouth.style.width = `${80 + extraW}px`;
+                            mouth.style.height = `${30 + extraH}px`;
+                            mouth.style.borderRadius = '0 0 80px 80px';
+                            mouth.style.border = 'none';
+                            mouth.style.borderBottom = `${5 + smile * 4}px solid #ff6b81`;
+                            mouth.style.backgroundColor = 'transparent';
+                        } else {
+                            // Neutral
+                            mouth.style.width = '80px';
+                            mouth.style.height = '35px';
+                            mouth.style.borderRadius = '0 0 50px 50px';
+                            mouth.style.border = 'none';
+                            mouth.style.borderBottom = '4px solid #cc8866';
+                            mouth.style.backgroundColor = 'transparent';
+                        }
+                    }
+
+                    // ===== 4. CHEEKS (smile blush) =====
+                    const cheeks = document.querySelectorAll('.cheek');
+                    cheeks.forEach(c => c.style.opacity = smile > 0.15 ? Math.min(1, smile * 1.5) : '0');
+
+                    console.log(`🪞 Mirror | blinkL:${blinkL.toFixed(2)} blinkR:${blinkR.toFixed(2)} jaw:${jawOpen.toFixed(2)} smile:${smile.toFixed(2)}`);
+
+                } else {
+                    // No face detected — go to sleep
+                    if (!isSleeping) {
+                        isSleeping = true;
+                        face.classList.remove('angry', 'jealous', 'crying', 'demanding',
+                            'suspicious', 'upset', 'vomiting', 'sad');
+                        face.classList.add('sleeping');
+                        startZzzBehavior();
+                    }
+                }
+            }
+            window.requestAnimationFrame(predictWebcam);
+        }
+
+        function startUpsetState() {
+            isUpset = true;
+            face.classList.add('upset');
+
+            // Auto-recover after 1 minute
+            upsetTimeout = setTimeout(() => {
+                stopUpsetState();
+            }, 60000);
+        }
+
+        function stopUpsetState() {
+            if (!isUpset) return;
+            isUpset = false;
+            face.classList.remove('upset');
+            if (upsetTimeout) {
+                clearTimeout(upsetTimeout);
+                upsetTimeout = null;
+            }
+        }
+
+        function startVomitParticles() {
+            if (vomitInterval) return;
+
+            const container = document.getElementById('vomit-container');
+
+            // Violent Burst
+            vomitInterval = setInterval(() => {
+                createVomitParticle(container);
+                if (Math.random() > 0.5) createVomitParticle(container); // Double density sometimes
+            }, 10); // Very fast generation
+
+            // Stop generating after 0.8 seconds (Burst over)
+            setTimeout(() => {
+                if (vomitInterval) {
+                    clearInterval(vomitInterval);
+                    vomitInterval = null;
+                }
+            }, 800);
+        }
+
+        function createVomitParticle(container) {
+            const p = document.createElement('div');
+            p.classList.add('vomit-particle');
+
+            // Random properties - liquid sizes
+            const size = 4 + Math.random() * 8;
+            p.style.width = `${size}px`;
+            p.style.height = `${size}px`;
+
+            // Organic shape (blobby)
+            const r1 = 40 + Math.random() * 60;
+            const r2 = 40 + Math.random() * 60;
+            const r3 = 40 + Math.random() * 60;
+            const r4 = 40 + Math.random() * 60;
+            p.style.borderRadius = `${r1}% ${r2}% ${r3}% ${r4}%`;
+
+            // Random horizontal velocity for spew effect - tighter stream
+            const vx = (Math.random() - 0.5) * 40; // -20px to +20px spread
+            p.style.setProperty('--vx', `${vx}px`);
+
+            // Random color variation
+            const rand = Math.random();
+            if (rand > 0.8) p.style.backgroundColor = '#98fb98'; // Lighter chunks
+            else if (rand > 0.6) p.style.backgroundColor = '#228b22'; // Darker chunks
+
+            container.appendChild(p);
+
+            // Cleanup
+            setTimeout(() => {
+                p.remove();
+            }, 800);
+        }
+
+        function stopVomitParticles() {
+            clearInterval(vomitInterval);
+            vomitInterval = null;
+            const container = document.getElementById('vomit-container');
+            container.innerHTML = '';
+        }
+
+        function startZzzBehavior() {
+            if (zzzInterval) return;
+
+            const container = document.getElementById('zzz-container');
+
+            // Create initial Z immediately
+            createZzz(container);
+
+            zzzInterval = setInterval(() => {
+                createZzz(container);
+            }, 800); // New Z every 0.8s
+        }
+
+        function createZzz(container) {
+            const z = document.createElement('div');
+            z.classList.add('zzz');
+            z.innerText = 'Z';
+
+            // Randomize look
+            const size = 20 + Math.random() * 20;
+            z.style.fontSize = `${size}px`;
+            z.style.left = `${Math.random() * 40 - 10}px`;
+
+            container.appendChild(z);
+
+            // Cleanup
+            setTimeout(() => {
+                z.remove();
+            }, 2500);
+        }
+
+        function stopZzzBehavior() {
+            clearInterval(zzzInterval);
+            zzzInterval = null;
+            const container = document.getElementById('zzz-container');
+            container.innerHTML = ''; // Clear existing Zzzs
+        }
+
+        // Question Mark Behavior (for searching)
+        let questionInterval = null;
+
+        function startQuestionBehavior() {
+            if (questionInterval) return;
+
+            const container = document.getElementById('question-container');
+
+            // Create initial ? immediately
+            createQuestion(container);
+
+            questionInterval = setInterval(() => {
+                createQuestion(container);
+            }, 800); // New ? every 0.8s
+        }
+
+        function createQuestion(container) {
+            const q = document.createElement('div');
+            q.classList.add('question');
+            q.innerText = '?';
+
+            // Randomize look
+            const size = 20 + Math.random() * 20;
+            q.style.fontSize = `${size}px`;
+            q.style.left = `${Math.random() * 40 - 10}px`;
+
+            container.appendChild(q);
+
+            // Cleanup
+            setTimeout(() => {
+                q.remove();
+            }, 2500);
+        }
+
+        function stopQuestionBehavior() {
+            clearInterval(questionInterval);
+            questionInterval = null;
+            const container = document.getElementById('question-container');
+            container.innerHTML = ''; // Clear existing question marks
+        }
+
+        function startPeekingBehavior() {
+            if (suspiciousInterval) return; // Already running
+
+            const lookUp = () => {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                // Look at random spot in top 40% of screen
+                const randomX = Math.random() * width;
+                const randomY = Math.random() * (height * 0.4);
+                moveEyesTo(randomX, randomY);
+            };
+
+            // Initial look up
+            lookUp();
+
+            suspiciousInterval = setInterval(() => {
+                // 30% chance to peek at cursor
+                if (Math.random() > 0.7) {
+                    isPeeking = true;
+                    // Peek at user
+                    moveEyesTo(lastMouseX, lastMouseY);
+
+                    setTimeout(() => {
+                        isPeeking = false;
+                        lookUp(); // Look back up innocently
+                    }, 500); // Short peek
+                } else {
+                    // 70% chance to just change where we are looking up (shifting eyes)
+                    if (!isPeeking) {
+                        lookUp();
+                    }
+                }
+            }, 1000);
+        }
+
+        function stopPeekingBehavior() {
+            clearInterval(suspiciousInterval);
+            suspiciousInterval = null;
+            isPeeking = false;
+            clearTimeout(peekTimeout);
+        }
+
+        function vomit() {
+            isVomiting = true;
+            face.classList.remove('cuddling', 'angry', 'sad', 'jealous', 'crying', 'demanding', 'sneeze-buildup', 'sneezing', 'sleeping', 'suspicious');
+            face.classList.add('vomiting');
+            stopPeekingBehavior();
+            stopZzzBehavior();
+            // No vomit particles - just nauseated expression 🤢
+
+            // Recover after 4 seconds
+            setTimeout(() => {
+                isVomiting = false;
+                face.classList.remove('vomiting');
+                totalRotation = 0;
+                lastCursorAngle = null;
+
+                // Become upset
+                startUpsetState();
+            }, 4000);
+        }
+
+        function goToSleep() {
+            isSleeping = true;
+            face.classList.remove('cuddling', 'angry', 'sad', 'jealous', 'crying', 'demanding', 'sneeze-buildup', 'sneezing', 'vomiting', 'suspicious');
+            face.classList.add('sleeping');
+            stopPeekingBehavior();
+            startZzzBehavior();
+
+            // Wake up after 60 seconds
+            setTimeout(wakeUp, 60000);
+        }
+
+        function wakeUp() {
+            isSleeping = false;
+            face.classList.remove('sleeping');
+            cuddleStartTime = null;
+            stopZzzBehavior();
+        }
+
+        function moveEyesTo(targetX, targetY) {
+            if (isSleeping || isVomiting || webcamRunning) return; // Don't move eyes when face tracking
+            const eyes = document.querySelectorAll('.eye');
+            eyes.forEach(eye => {
+                const pupil = eye.querySelector('.pupil');
+                const rect = eye.getBoundingClientRect();
+                const eyeCenterX = rect.left + rect.width / 2;
+                const eyeCenterY = rect.top + rect.height / 2;
+
+                const angle = Math.atan2(targetY - eyeCenterY, targetX - eyeCenterX);
+                const maxDistance = (rect.width - pupil.offsetWidth) / 2;
+                const distanceToMouse = Math.hypot(targetX - eyeCenterX, targetY - eyeCenterY);
+                const moveRadius = Math.min(distanceToMouse / 5, maxDistance);
+
+                const moveX = Math.cos(angle) * moveRadius;
+                const moveY = Math.sin(angle) * moveRadius;
+
+                pupil.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+            });
+        }
+
+        // ... (lookAtUser and startIdleBehavior remain same)
+
+        function lookAtUser() {
+            if (isSleeping || isVomiting) return;
+            const pupils = document.querySelectorAll('.pupil');
+            pupils.forEach(pupil => {
+                // Clear inline style so CSS variables take over during webcam
+                pupil.style.transform = '';
+            });
+        }
+
+        function startIdleBehavior() {
+            // Initially look at user when idle starts
+            isLookingAtUser = true;
+            lookAtUser();
+
+            gazeInterval = setInterval(() => {
+                if (isLookingAtUser) {
+                    // Switch to looking at cursor
+                    moveEyesTo(lastMouseX, lastMouseY);
+                    isLookingAtUser = false;
+                } else {
+                    // Switch to looking at user
+                    lookAtUser();
+                    isLookingAtUser = true;
+                }
+            }, 2000); // Switch every 2 seconds
+        }
+
+        function startSearching() {
+            if (isSearching || isSleeping || isVomiting) return;
+            isSearching = true;
+            face.classList.remove('angry', 'sad', 'jealous', 'crying', 'demanding', 'suspicious', 'cuddling', 'upset');
+            face.classList.add('searching');
+            const magnifier = document.getElementById('magnifier');
+            magnifier.classList.add('active');
+
+            // Start question mark animation
+            startQuestionBehavior();
+
+            // Keep eyes looking straight forward like monocle emoji 🧐
+            lookAtUser();
+        }
+
+        function stopSearching() {
+            if (!isSearching) return;
+            isSearching = false;
+            face.classList.remove('searching');
+            const magnifier = document.getElementById('magnifier');
+            magnifier.classList.remove('active');
+
+            // Stop question mark animation
+            stopQuestionBehavior();
+
+            if (searchLookInterval) {
+                clearInterval(searchLookInterval);
+                searchLookInterval = null;
+            }
+
+            // Reset both eyes
+            const pupils = document.querySelectorAll('.pupil');
+            pupils.forEach(pupil => {
+                pupil.style.transform = 'translate(-50%, -50%)';
+            });
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            // If sleeping, vomiting, or face tracking via webcam, ignore mouse interaction
+            if (isSleeping || isVomiting || webcamRunning) return;
+
+            const x = e.clientX;
+            const y = e.clientY;
+
+            // Store last position for idle gaze
+            lastMouseX = x;
+            lastMouseY = y;
+            lastMoveTime = Date.now();
+
+            // Stop searching when cursor moves
+            if (isSearching) {
+                stopSearching();
+            }
+
+            // Reset search timeout
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                startSearching();
+            }, 60000); // Start searching after 1 minute of no movement
+
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            const faceRect = face.getBoundingClientRect();
+            const faceCenterX = faceRect.left + faceRect.width / 2;
+            const faceCenterY = faceRect.top + faceRect.height / 2;
+
+            // Rotation Tracking for Vomit
+            const currentAngle = Math.atan2(y - faceCenterY, x - faceCenterX);
+            if (lastCursorAngle !== null) {
+                let delta = currentAngle - lastCursorAngle;
+                // Normalize delta to -PI to PI
+                if (delta > Math.PI) delta -= 2 * Math.PI;
+                if (delta < -Math.PI) delta += 2 * Math.PI;
+
+                totalRotation += delta;
+
+                // Check for 4 full rotations (4 * 2PI) approx 25 radians
+                if (Math.abs(totalRotation) > 25) {
+                    vomit();
+                    return;
+                }
+            }
+            lastCursorAngle = currentAngle;
+
+            // Reset rotation if mouse stops moving for a bit (break in continuity)
+            clearTimeout(spinResetTimeout);
+            spinResetTimeout = setTimeout(() => {
+                totalRotation = 0;
+                lastCursorAngle = null;
+            }, 200);
+
+            // Check if cursor is "touching head" (Upper half of face)
+            const isOverFace = x >= faceRect.left && x <= faceRect.right &&
+                y >= faceRect.top && y <= faceRect.bottom;
+
+            // Update global state
+            isTouchingHead = isOverFace && y < faceCenterY;
+
+            // Remove existing classes
+            face.classList.remove('angry', 'sad', 'jealous', 'crying', 'demanding', 'suspicious');
+            // Note: 'upset' class handling needs care. We probably don't want to remove it blindly if we are upset?
+            // Actually, let's allow other states (like Cuddling) to override it visually, but if we stop cuddling, we revert to upset.
+
+            if (isUpset) {
+                // Re-add upset class by default if active
+                face.classList.add('upset');
+            }
+
+            if (isTouchingHead) {
+                stopPeekingBehavior();
+                // Cure Upset State - Require 1 second of continuous cuddling
+                if (isUpset) {
+                    if (!upsetCureTimeout) {
+                        upsetCureTimeout = setTimeout(() => {
+                            stopUpsetState();
+                            upsetCureTimeout = null;
+                        }, 1000); // 1 second required
+                    }
+                }
+
+                // Check for Continuous Cuddling -> Sleep
+                if (!cuddleStartTime) {
+                    cuddleStartTime = Date.now();
+                } else if (Date.now() - cuddleStartTime > 20000) { // 20 seconds of continuous cuddling
+                    goToSleep();
+                    return; // Stop processing other logic
+                }
+
+                // Active Movement -> Cuddling
+                face.classList.add('cuddling');
+
+                // Reset timeout for "stopping"
+                clearTimeout(cuddleTimeout);
+                cuddleTimeout = setTimeout(() => {
+                    if (isTouchingHead && !isSleeping) {
+                        face.classList.remove('cuddling');
+                        if (!face.classList.contains('sleeping')) {
+                            face.classList.add('demanding');
+                        }
+                    }
+                }, 200); // 200ms of no movement -> Demanding
+            } else {
+                // RESET continuous cuddle timer if stopped touching head
+                cuddleStartTime = null;
+
+                // Reset upset cure timer if we stop touching head too soon
+                if (upsetCureTimeout) {
+                    clearTimeout(upsetCureTimeout);
+                    upsetCureTimeout = null;
+                }
+
+                // Not touching head - Clear timeout and remove cuddling
+                clearTimeout(cuddleTimeout);
+                face.classList.remove('cuddling');
+
+                if (y < height * 0.1) {
+                    stopPeekingBehavior();
+                    // Top Zone
+                    if (x < width * 0.75) {
+                        // Left 75% -> Jealous
+                        face.classList.add('jealous');
+                    } else {
+                        // Right 25% -> Crying
+                        face.classList.add('crying');
+                    }
+                } else if (y > height * 0.8) {
+                    // Bottom Zone -> Suspicious (formerly Sad)
+                    face.classList.add('suspicious');
+                    startPeekingBehavior();
+                } else {
+                    stopPeekingBehavior();
+                }
+                // Nose/Sneezing Detection (Center of Face)
+                const distToCenter = Math.hypot(x - faceCenterX, y - faceCenterY);
+                if (distToCenter < 40 && !face.classList.contains('sneeze-buildup') && !face.classList.contains('sneezing')) {
+                    // Check for Continuous Presence -> Trigger Sneeze
+                    if (!sneezeTimeout) {
+                        sneezeTimeout = setTimeout(() => {
+                            // Trigger Sneeze Sequence
+                            face.classList.remove('sad', 'jealous', 'crying', 'demanding', 'cuddling', 'suspicious');
+                            face.classList.add('sneeze-buildup');
+                            stopPeekingBehavior();
+
+                            setTimeout(() => {
+                                if (face.classList.contains('sneeze-buildup')) {
+                                    face.classList.remove('sneeze-buildup');
+                                    face.classList.add('sneezing');
+
+                                    // Show "Hachzzz" text
+                                    const text = document.getElementById('sneeze-text');
+                                    text.classList.add('show');
+
+                                    // Recover after sneeze
+                                    setTimeout(() => {
+                                        face.classList.remove('sneezing');
+                                        text.classList.remove('show'); // Hide text
+                                    }, 500);
+                                }
+                            }, 1500); // 1.5s buildup
+
+                            sneezeTimeout = null; // Reset timeout
+                        }, 2000); // 2s delay before sneeze starts
+                    }
+                } else {
+                    // Left nose area - Clear timeout
+                    if (sneezeTimeout) {
+                        clearTimeout(sneezeTimeout);
+                        sneezeTimeout = null;
+                    }
+                }
+
+                // Else: Neutral or just following eyes
+            }
+
+
+            // Eye Tracking Logic
+            // 1. Reset Idle Timers because we are moving
+            clearTimeout(idleTimer);
+            clearInterval(gazeInterval);
+            isLookingAtUser = false;
+
+            // 2. Start new idle timer
+            if (!face.classList.contains('suspicious')) {
+                idleTimer = setTimeout(startIdleBehavior, 1500); // Wait 1.5s after stop before starting idle behavior
+            }
+
+            // 3. Move eyes to cursor immediately (unless cuddling or sneezing or webcam active)
+            if (!webcamRunning &&
+                !face.classList.contains('cuddling') &&
+                !face.classList.contains('sneeze-buildup') &&
+                !face.classList.contains('sneezing')) {
+
+                if (face.classList.contains('suspicious') && !isPeeking) {
+                    // Allow interval to control eyes (looking up/around)
+                } else {
+                    moveEyesTo(x, y);
+                }
+            } else if (webcamRunning) {
+                // Keep eyes looking straight at user during face tracking
+                lookAtUser();
+            }
+        });
+
+        // Natural Blinking Logic
+        function blink() {
+            const face = document.getElementById('face');
+            // Don't blink if cuddling or demanding (eyes are already modified) or crying (might look weird)
+            if (!face.classList.contains('cuddling') &&
+                !face.classList.contains('demanding') &&
+                !face.classList.contains('crying') &&
+                !face.classList.contains('jealous') &&
+                !face.classList.contains('sneeze-buildup') &&
+                !face.classList.contains('sneezing') &&
+                !face.classList.contains('sleeping') &&
+                !face.classList.contains('vomiting')) { // Jealous has squinting, maybe skip blink
+
+                face.classList.add('blinking');
+                setTimeout(() => {
+                    face.classList.remove('blinking');
+                }, 150); // Blink duration
+            }
+
+            // Schedule next blink randomly between 3 and 6 seconds
+            setTimeout(blink, Math.random() * 3000 + 3000);
+        }
+
+        // Start blinking loop
+        setTimeout(blink, 3000);
+
+        // Entrance Animation Trigger
+        document.addEventListener('DOMContentLoaded', () => {
+            const face = document.getElementById('face');
+            face.classList.add('drop-in');
+
+            // Remove class after animation to avoid conflict with other transform animations
+            setTimeout(() => {
+                face.classList.remove('drop-in');
+            }, 1200);
+        });
+
+        // Keyboard Triggers
+        window.addEventListener('keydown', (e) => {
+            // Ignore if user is typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            const key = e.key.toLowerCase();
+
+            // Expressions (1-6)
+            if (key >= '1' && key <= '6') {
+                resetDinky();
+                const moods = ['', 'angry', 'sad', 'jealous', 'crying', 'suspicious', 'demanding'];
+                const mood = moods[parseInt(key)];
+                if (mood) {
+                    face.classList.add(mood);
+                    if (mood === 'suspicious') startPeekingBehavior();
+                }
+                return;
+            }
+
+            switch (key) {
+                case 's': // Sleep Toggle
+                    if (isSleeping) wakeUp();
+                    else { resetDinky(); goToSleep(); }
+                    break;
+                case 'v': // Vomit Action
+                    resetDinky();
+                    vomit();
+                    break;
+                case 'h': // Sneeze Action
+                    resetDinky();
+                    face.classList.add('sneeze-buildup');
+                    setTimeout(() => {
+                        if (face.classList.contains('sneeze-buildup')) {
+                            face.classList.remove('sneeze-buildup');
+                            face.classList.add('sneezing');
+                            const text = document.getElementById('sneeze-text');
+                            text.classList.add('show');
+                            setTimeout(() => {
+                                face.classList.remove('sneezing');
+                                text.classList.remove('show');
+                            }, 500);
+                        }
+                    }, 1500);
+                    break;
+                case 'f': // Search/Find Toggle
+                    if (isSearching) stopSearching();
+                    else { resetDinky(); startSearching(); }
+                    break;
+                case 'u': // Upset Toggle
+                    if (isUpset) stopUpsetState();
+                    else { resetDinky(); startUpsetState(); }
+                    break;
+                case 'r': // Reset to Neutral
+                    resetDinky();
+                    break;
+            }
+        });
+    </script>
+</body>
+
+</html>
