@@ -4,339 +4,282 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dinky Lab — Interactive Experiments</title>
-    <meta name="description"
-        content="A collection of interactive gaze-tracking games and experiments by Chathura Nirmal.">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    <title>CN's Lab — Interactive Experiments</title>
+    <!-- <link rel="icon" type="image/png" href="images/favicon.png" sizes="any"> -->
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nothing+You+Could+Do&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
     <style>
-        *,
-        *::before,
-        *::after {
+        /* --- GLOBAL RESET & TYPOGRAPHY --- */
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --bg: #0a0a0f;
-            --surface: #12121a;
-            --card-bg: #16161f;
-            --border: rgba(255, 255, 255, 0.06);
-            --text: #e8e8ef;
-            --text-muted: #6b6b7b;
-            --accent: #6366f1;
-            --accent-glow: rgba(99, 102, 241, 0.25);
         }
 
         body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* Ambient gradient background */
-        body::before {
-            content: '';
-            position: fixed;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
-            z-index: 0;
-            pointer-events: none;
-            animation: ambientDrift 20s ease-in-out infinite alternate;
-        }
-
-        @keyframes ambientDrift {
-            0% {
-                transform: translate(0, 0) scale(1);
-            }
-
-            100% {
-                transform: translate(-3%, 2%) scale(1.05);
-            }
-        }
-
-        /* Noise overlay for texture */
-        body::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        .container {
-            position: relative;
-            z-index: 2;
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 60px 24px 80px;
-        }
-
-        /* Header */
-        .header {
-            text-align: center;
-            margin-bottom: 64px;
-        }
-
-        .header-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(99, 102, 241, 0.1);
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            padding: 6px 16px;
-            border-radius: 100px;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-bottom: 24px;
-        }
-
-        .header-badge::before {
-            content: '';
-            width: 6px;
-            height: 6px;
-            background: var(--accent);
-            border-radius: 50%;
-            animation: pulse-dot 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse-dot {
-
-            0%,
-            100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-
-            50% {
-                opacity: 0.4;
-                transform: scale(0.8);
-            }
-        }
-
-        h1 {
-            font-size: clamp(2.5rem, 6vw, 4rem);
-            font-weight: 900;
-            letter-spacing: -2px;
-            line-height: 1.1;
-            margin-bottom: 16px;
-            background: linear-gradient(135deg, #fff 0%, #a5a5c0 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            color: var(--text-muted);
-            max-width: 480px;
-            margin: 0 auto;
-            line-height: 1.6;
-            font-weight: 400;
-        }
-
-        /* Cards Grid */
-        .games-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 20px;
-        }
-
-        .game-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 32px;
-            text-decoration: none;
-            color: inherit;
+            font-family: 'Montserrat', sans-serif;
+            line-height: 1.5;
+            color: #333;
+            background-color: #fdfdfd;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            /* No Scroll */
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            cursor: pointer;
-        }
-
-        .game-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, var(--card-accent, rgba(99, 102, 241, 0.06)) 0%, transparent 60%);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .game-card:hover {
-            transform: translateY(-6px);
-            border-color: rgba(255, 255, 255, 0.12);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4),
-                0 0 40px var(--card-glow, rgba(99, 102, 241, 0.1));
-        }
-
-        .game-card:hover::before {
-            opacity: 1;
-        }
-
-        .game-card>* {
-            position: relative;
-            z-index: 1;
-        }
-
-        .card-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
             justify-content: center;
-            font-size: 28px;
-            background: var(--icon-bg, rgba(99, 102, 241, 0.12));
-            border: 1px solid var(--icon-border, rgba(99, 102, 241, 0.15));
-        }
-
-        .card-content h2 {
-            font-size: 1.25rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            margin-bottom: 6px;
-        }
-
-        .card-content p {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            line-height: 1.5;
-        }
-
-        .card-tag {
-            display: inline-flex;
             align-items: center;
-            gap: 6px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--tag-color, var(--text-muted));
-            margin-top: auto;
-            padding-top: 8px;
         }
 
-        .card-tag::before {
-            content: '';
-            width: 4px;
-            height: 4px;
-            border-radius: 50%;
-            background: var(--tag-color, var(--text-muted));
-        }
-
-        .card-arrow {
-            position: absolute;
-            top: 32px;
-            right: 32px;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        a {
+            color: inherit;
+            text-decoration: none;
             transition: all 0.3s ease;
         }
 
-        .card-arrow svg {
-            width: 14px;
-            height: 14px;
-            stroke: var(--text-muted);
-            stroke-width: 2;
-            fill: none;
-            transition: stroke 0.3s ease;
+        h1,
+        h2,
+        h3 {
+            font-family: 'EB Garamond', serif;
+            font-weight: 700;
         }
 
-        .game-card:hover .card-arrow {
-            background: var(--accent);
-            border-color: var(--accent);
-            transform: translate(2px, -2px);
+        /* --- CONTAINER --- */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 0 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            justify-content: center;
         }
 
-        .game-card:hover .card-arrow svg {
-            stroke: #fff;
-        }
-
-        /* Per-card accent colors */
-        .card-dinky {
-            --card-accent: rgba(255, 183, 77, 0.08);
-            --card-glow: rgba(255, 183, 77, 0.08);
-            --icon-bg: rgba(255, 183, 77, 0.12);
-            --icon-border: rgba(255, 183, 77, 0.18);
-            --tag-color: #ffb74d;
-        }
-
-        .card-shooter {
-            --card-accent: rgba(255, 87, 34, 0.08);
-            --card-glow: rgba(255, 87, 34, 0.08);
-            --icon-bg: rgba(255, 87, 34, 0.12);
-            --icon-border: rgba(255, 87, 34, 0.18);
-            --tag-color: #ff5722;
-        }
-
-        .card-lucus {
-            --card-accent: rgba(33, 150, 243, 0.08);
-            --card-glow: rgba(33, 150, 243, 0.08);
-            --icon-bg: rgba(33, 150, 243, 0.12);
-            --icon-border: rgba(33, 150, 243, 0.18);
-            --tag-color: #2196f3;
-        }
-
-        .card-cursor {
-            --card-accent: rgba(0, 188, 212, 0.08);
-            --card-glow: rgba(0, 188, 212, 0.08);
-            --icon-bg: rgba(0, 188, 212, 0.12);
-            --icon-border: rgba(0, 188, 212, 0.18);
-            --tag-color: #00bcd4;
-        }
-
-        .card-balls {
-            --card-accent: rgba(76, 175, 80, 0.08);
-            --card-glow: rgba(76, 175, 80, 0.08);
-            --icon-bg: rgba(76, 175, 80, 0.12);
-            --icon-border: rgba(76, 175, 80, 0.18);
-            --tag-color: #4caf50;
-        }
-
-        /* Footer */
-        .footer {
+        /* --- HEADER --- */
+        .header {
             text-align: center;
-            margin-top: 64px;
-            color: var(--text-muted);
-            font-size: 13px;
-            opacity: 0.6;
+            margin-bottom: 3rem;
+            animation: fadeInDown 0.8s ease-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        /* Entrance Animations */
-        .game-card {
+        .subtitle {
+            font-size: 1.1rem;
+            color: #666;
+            max-width: 600px;
+            margin-top: 1rem;
+            font-weight: 300;
+        }
+
+        /* --- ANIMATED LOGO EXPANDER --- */
+        .logo-expander {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .logo-letter,
+        .logo-hidden {
+            font-family: "Nothing You Could Do", cursive;
+            font-weight: 400;
+            font-style: normal;
+            color: #222;
+            font-size: 4rem;
+            /* Big Header Size */
+            text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.1);
+            white-space: pre;
+            line-height: 1;
+        }
+
+        /* The letters C, N, 's remain visible but might shift */
+        .logo-letter {
+            transition: transform 1.2s ease;
+        }
+
+        /* The parts that expand */
+        .logo-hidden {
+            display: inline-block;
+            max-width: 0;
             opacity: 0;
-            transform: translateY(30px);
-            animation: fadeUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            overflow: hidden;
+            /* Slower duration and delay matching hover delay */
+            transition: max-width 1.5s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 1.0s ease;
+            vertical-align: bottom;
+        }
+
+        /* Hover States */
+        /* Reveal the hidden parts with delay */
+        .logo-expander:hover .logo-hidden {
+            max-width: 500px;
+            /* Big enough for expansion */
+            opacity: 1;
+            transition-delay: 0.2s;
+            /* Faster response for header */
+        }
+
+        /* --- GRID --- */
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            /* 5 Columns for single row */
+            gap: 1.5rem;
+            width: 100%;
+            perspective: 1000px;
+        }
+
+        .game-card {
+            background: #fff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            /* Subtle border */
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            height: 220px;
+            /* Fixed height for uniformity */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+        }
+
+        /* Blue Accent Hover */
+        .game-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0, 86, 179, 0.15);
+            /* Blue shadow */
+            border-color: #0056b3;
+        }
+
+        .card-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            display: block;
+            transition: transform 0.3s ease;
+        }
+
+        .game-card:hover .card-icon {
+            transform: scale(1.1);
+        }
+
+        .card-title {
+            font-family: 'EB Garamond', serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-desc {
+            font-size: 0.85rem;
+            color: #666;
+            line-height: 1.4;
+            font-weight: 300;
+        }
+
+        /* --- FOOTER --- */
+        .footer {
+            margin-top: 3rem;
+            font-size: 0.85rem;
+            color: #888;
+            font-weight: 300;
+            display: flex;
+            gap: 1.5rem;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .footer a:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 1024px) {
+            .games-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1rem;
+            }
+
+            .game-card {
+                height: 200px;
+            }
+
+            .logo-letter,
+            .logo-hidden {
+                font-size: 3rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                height: auto;
+                overflow-y: auto;
+                /* Allow scroll on mobile */
+                padding: 2rem 0;
+            }
+
+            .games-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .logo-letter,
+            .logo-hidden {
+                font-size: 2.5rem;
+            }
+
+            .header {
+                margin-bottom: 2rem;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .games-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .game-card {
+            animation: cardEntrance 0.6s backwards;
         }
 
         .game-card:nth-child(1) {
@@ -359,29 +302,15 @@
             animation-delay: 0.5s;
         }
 
-        @keyframes fadeUp {
+        @keyframes cardEntrance {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
-            }
-        }
-
-        .header {
-            animation: fadeUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-        }
-
-        /* Responsive */
-        @media (max-width: 700px) {
-            .games-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .container {
-                padding: 40px 16px 60px;
-            }
-
-            .header {
-                margin-bottom: 40px;
             }
         }
     </style>
@@ -392,96 +321,73 @@
     <div class="container">
 
         <header class="header">
-            <div class="header-badge">Interactive Lab</div>
-            <h1>Dinky Lab</h1>
-            <p>A collection of interactive gaze-tracking experiments and games. Each one uses your webcam and AI to
-                understand where you're looking.</p>
+            <!-- Animated Logo Expander as Header -->
+            <div class="logo-expander">
+                <span class="logo-letter">C</span>
+                <span class="logo-hidden">hathura </span>
+                <span class="logo-letter">N</span>
+                <span class="logo-hidden">irmal</span>
+                <span class="logo-letter">'s</span>
+                <span class="logo-hidden"> </span>
+                <span class="logo-letter">L</span>
+                <span class="logo-hidden">ab</span>
+            </div>
+
+            <p class="subtitle">Interactive gaze-tracking experiments.</p>
         </header>
 
         <div class="games-grid">
-
             <!-- Dinky -->
-            <a href="./dinky/" class="game-card card-dinky" id="card-dinky">
-                <div class="card-arrow">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M7 17L17 7M17 7H7M17 7V17" />
-                    </svg>
+            <a href="./dinky/" class="game-card">
+                <span class="card-icon">😊</span>
+                <div>
+                    <h3 class="card-title">Dinky</h3>
+                    <p class="card-desc">Interactive Character</p>
                 </div>
-                <div class="card-icon">😊</div>
-                <div class="card-content">
-                    <h2>Dinky</h2>
-                    <p>An interactive face character that reacts to your cursor with emotions — happy, angry, sad,
-                        sleepy, and more.</p>
-                </div>
-                <div class="card-tag">Cursor Interactive</div>
             </a>
 
             <!-- Gaze Shooter -->
-            <a href="./GazeShooter.html" class="game-card card-shooter" id="card-shooter">
-                <div class="card-arrow">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M7 17L17 7M17 7H7M17 7V17" />
-                    </svg>
+            <a href="./GazeShooter.html" class="game-card">
+                <span class="card-icon">🎯</span>
+                <div>
+                    <h3 class="card-title">Gaze Shooter</h3>
+                    <p class="card-desc">Target Practice</p>
                 </div>
-                <div class="card-icon">🎯</div>
-                <div class="card-content">
-                    <h2>Gaze Shooter</h2>
-                    <p>Look left or right to select a target balloon, then blink to shoot a laser and pop it.</p>
-                </div>
-                <div class="card-tag">Gaze + Blink</div>
             </a>
 
             <!-- Lucus -->
-            <a href="./Lucus.html" class="game-card card-lucus" id="card-lucus">
-                <div class="card-arrow">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M7 17L17 7M17 7H7M17 7V17" />
-                    </svg>
+            <a href="./Lucus.html" class="game-card">
+                <span class="card-icon">🎈</span>
+                <div>
+                    <h3 class="card-title">Lucus</h3>
+                    <p class="card-desc">Balloon Popper</p>
                 </div>
-                <div class="card-icon">🎈</div>
-                <div class="card-content">
-                    <h2>Lucus</h2>
-                    <p>Pop balloons using gaze dwell selection. Look at a balloon long enough and it explodes.</p>
-                </div>
-                <div class="card-tag">Gaze Dwell</div>
             </a>
 
             <!-- Eye Cursor -->
-            <a href="./eye_cursor.html" class="game-card card-cursor" id="card-cursor">
-                <div class="card-arrow">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M7 17L17 7M17 7H7M17 7V17" />
-                    </svg>
+            <a href="./eye_cursor.html" class="game-card">
+                <span class="card-icon">👁️</span>
+                <div>
+                    <h3 class="card-title">Eye Cursor</h3>
+                    <p class="card-desc">Head Tracking Control</p>
                 </div>
-                <div class="card-icon">👁️</div>
-                <div class="card-content">
-                    <h2>Eye Cursor</h2>
-                    <p>Control a cursor on screen using only your eyes. Move your head to aim, blink to fire.</p>
-                </div>
-                <div class="card-tag">Head Tracking</div>
             </a>
 
             <!-- Gaze Balls -->
-            <a href="./gaze_balls.html" class="game-card card-balls" id="card-balls">
-                <div class="card-arrow">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M7 17L17 7M17 7H7M17 7V17" />
-                    </svg>
+            <a href="./gaze_balls.html" class="game-card">
+                <span class="card-icon">🟢</span>
+                <div>
+                    <h3 class="card-title">Gaze Balls</h3>
+                    <p class="card-desc">Pattern Analysis</p>
                 </div>
-                <div class="card-icon">🟢</div>
-                <div class="card-content">
-                    <h2>Gaze Balls</h2>
-                    <p>Track moving balls with your eyes. The AI analyzes your gaze pattern to figure out which ball
-                        you're watching.</p>
-                </div>
-                <div class="card-tag">Pattern Matching</div>
             </a>
-
         </div>
 
-        <div class="footer">
-            &copy; 2026 Chathura Nirmal &middot; Dinky Lab
-        </div>
+        <footer class="footer">
+            <span>&copy; 2026 CN's Lab</span>
+            <a href="https://chathuranirmal.com" target="_blank">About Me</a>
+            <a href="mailto:chathuranirmalweerasinghe@gmail.com">Contact</a>
+        </footer>
 
     </div>
 
