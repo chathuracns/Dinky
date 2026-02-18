@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dinky and the cursor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
@@ -13,8 +14,8 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #f0f2f5;
-            font-family: sans-serif;
+            background-color: #fdfdfd;
+            font-family: 'Montserrat', sans-serif;
             transition: background-color 0.5s;
             overflow: hidden;
             --eye-l-open: 1;
@@ -42,13 +43,14 @@
         .btn {
             padding: 10px 20px;
             border: none;
-            border-radius: 8px;
-            background: white;
-            color: #333;
-            font-weight: bold;
+            border-radius: 50px;
+            background: #0056b3;
+            color: white;
+            font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px rgba(0, 86, 179, 0.3);
             transition: all 0.2s;
+            font-family: 'Montserrat', sans-serif;
         }
 
         .btn:hover {
@@ -57,8 +59,9 @@
         }
 
         .btn.active {
-            background: #4caf50;
+            background: #004494;
             color: white;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         #webcam-container {

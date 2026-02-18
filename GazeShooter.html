@@ -5,11 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gaze Shooter - Left/Right Selection</title>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #FF5722;
-            --bg: #ffffff;
-            --text: #1a1a2e;
+            --primary: #0056b3;
+            --bg: #fdfdfd;
+            --text: #333333;
             --balloon-color: #e94560;
         }
 
@@ -18,7 +21,7 @@
             overflow: hidden;
             background: var(--bg);
             color: var(--text);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Montserrat', sans-serif;
             user-select: none;
         }
 
@@ -43,7 +46,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(253, 253, 253, 0.95);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -53,9 +56,11 @@
         }
 
         h1 {
+            font-family: 'EB Garamond', serif;
             font-size: 3rem;
             margin-bottom: 0.5rem;
-            text-shadow: 0 0 20px var(--primary);
+            text-shadow: none;
+            color: var(--primary);
         }
 
         p {
@@ -277,8 +282,8 @@
 
     <!-- UI Overlay for Start/Calibration -->
     <div id="start-screen">
-        <h1 style="color:white; font-weight:bold;">GAZE SHOOTER</h1>
-        <p style="color:#ccc;">Look Left/Right to Select. Blink to Shoot.</p>
+        <h1 style="color:var(--text); font-weight:bold;">GAZE SHOOTER</h1>
+        <p style="color:var(--text); opacity: 0.8;">Look Left/Right to Select. Blink to Shoot.</p>
         <button id="start-btn" class="btn">START CALIBRATION</button>
         <p id="status-msg" style="margin-top: 20px; font-size: 1rem; color: #aaa;">Loading AI Models...</p>
     </div>

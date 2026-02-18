@@ -5,20 +5,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gaze Ball Tracker | Advanced Eye Matching</title>
-    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #ffffff;
-            --surface: #d9d0b4;
-            --primary: #5a9e2f;
-            --secondary: #4a8a25;
-            --accent: #2d7a0e;
-            --text-main: #3b2d1a;
-            --text-muted: #6b5d4a;
-            --stone: #c8bfa8;
-            --stone-dark: #e8e0cc;
-            --stone-light: #b8a88a;
-            --dirt: #8b6f3e;
+            --bg: #fdfdfd;
+            --surface: #ffffff;
+            --primary: #0056b3;
+            --secondary: #004494;
+            --accent: #003366;
+            --text-main: #333333;
+            --text-muted: #666666;
+            --stone: #f0f0f0;
+            --stone-dark: #ffffff;
+            --stone-light: #e0e0e0;
+            --dirt: #cccccc;
         }
 
         * {
@@ -30,11 +32,11 @@
         body {
             background: var(--bg);
             color: var(--text-main);
-            font-family: 'VT323', monospace;
+            font-family: 'Montserrat', sans-serif;
             height: 100vh;
             overflow: hidden;
             user-select: none;
-            image-rendering: pixelated;
+            image-rendering: auto;
         }
 
         /* Canvas Layer */
@@ -63,17 +65,13 @@
 
         /* Panels — Minecraft inventory style */
         .panel {
-            background: var(--stone-dark);
-            border: 4px solid #000;
-            outline: 4px solid var(--stone-light);
-            outline-offset: -8px;
+            background: var(--surface);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
             padding: 40px;
             text-align: center;
             max-width: 500px;
-            box-shadow:
-                inset 2px 2px 0px #f5f0e0,
-                inset -2px -2px 0px var(--stone-light),
-                8px 8px 0px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             pointer-events: auto;
             transform: translateY(20px);
             opacity: 0;
@@ -88,53 +86,49 @@
         }
 
         h1 {
-            font-family: 'VT323', monospace;
+            font-family: 'EB Garamond', serif;
             font-size: 3rem;
             margin-bottom: 1rem;
-            color: var(--accent);
-            text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.15);
+            color: var(--primary);
+            text-shadow: none;
             font-weight: 400;
-            letter-spacing: 2px;
+            letter-spacing: 0;
         }
 
         p {
             color: var(--text-muted);
-            line-height: 1.4;
+            line-height: 1.6;
             margin-bottom: 2rem;
-            font-size: 1.4rem;
-            font-family: 'VT323', monospace;
+            font-size: 1.1rem;
+            font-family: 'Montserrat', sans-serif;
         }
 
         .btn {
             background: var(--primary);
-            border: 3px solid #000;
-            box-shadow:
-                inset 2px 2px 0px #7ece4f,
-                inset -2px -2px 0px #3a7a1a;
+            border: none;
+            border-radius: 50px;
+            box-shadow: 0 5px 15px rgba(0, 86, 179, 0.3);
             padding: 12px 32px;
             color: #fff;
-            font-family: 'VT323', monospace;
-            font-weight: 400;
-            font-size: 1.5rem;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+            font-size: 1.1rem;
             cursor: pointer;
-            transition: all 0.1s;
+            transition: all 0.2s;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.5);
+            letter-spacing: 1px;
+            text-shadow: none;
         }
 
         .btn:hover {
-            background: #6ebe3f;
-            box-shadow:
-                inset 2px 2px 0px #8ede5f,
-                inset -2px -2px 0px #4a8a2a;
+            background: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 86, 179, 0.4);
         }
 
         .btn:active {
-            box-shadow:
-                inset -2px -2px 0px #7ece4f,
-                inset 2px 2px 0px #3a7a1a;
-            transform: translate(2px, 2px);
+            box-shadow: 0 2px 5px rgba(0, 86, 179, 0.3);
+            transform: translateY(0);
         }
 
         /* HUD */
@@ -144,10 +138,10 @@
             left: 20px;
             z-index: 50;
             color: var(--text-muted);
-            font-family: 'VT323', monospace;
-            font-size: 16px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
             pointer-events: none;
-            text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.1);
+            text-shadow: none;
         }
 
         #webcam-preview {
