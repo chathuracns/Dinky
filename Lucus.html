@@ -560,12 +560,12 @@
     <div id="settings-panel">
         <h3>⚙ Manual Calibration</h3>
         <div class="setting-group">
-            <label>Min X (Left Edge) <span id="minX-val">-0.10</span></label>
-            <input type="range" id="slider-minX" min="-0.50" max="0.00" step="0.01" value="-0.10">
+            <label>Min X (Left Edge) <span id="minX-val">0.35</span></label>
+            <input type="range" id="slider-minX" min="0.10" max="0.50" step="0.01" value="0.35">
         </div>
         <div class="setting-group">
-            <label>Max X (Right Edge) <span id="maxX-val">0.10</span></label>
-            <input type="range" id="slider-maxX" min="0.00" max="0.50" step="0.01" value="0.10">
+            <label>Max X (Right Edge) <span id="maxX-val">0.65</span></label>
+            <input type="range" id="slider-maxX" min="0.50" max="0.90" step="0.01" value="0.65">
         </div>
         <div class="setting-group">
             <label>Neutral Zone <span id="threshold-val">0.75</span></label>
@@ -576,7 +576,7 @@
             <input type="range" id="slider-dwell" min="500" max="6000" step="100" value="3000">
         </div>
         <div id="gaze-monitor">
-            <div class="monitor-label">LIVE GAZE</div>
+            <div class="monitor-label">FUSED GAZE: 60% IRIS + 40% NOSE</div>
             <div id="gaze-bar-container">
                 <div class="threshold-marker" id="marker-left"></div>
                 <div class="threshold-marker" id="marker-right"></div>
@@ -656,6 +656,12 @@
         let isPopping = false;
         let gazeThreshold = 0.75; // Neutral zone threshold
 
+        // --- Iris + Nose gaze tracking (from gaze_balls method) ---
+        let smoothIrisX = 0.5;  // Smoothed iris gaze
+        let smoothNoseX = 0.5;  // Smoothed nose pointing
+        let fusedGazeX = 0.5;   // Fused signal: 60% iris + 40% nose
+        let SMOOTHING = 0.25;   // EMA factor
+
         // Character GIFs & Shuffle
         const WIN_GIF = 'https://media1.tenor.com/m/0j-aMja9PjwAAAAC/dance-happy-dance.gif';
         const LOSE_GIF = 'https://media1.tenor.com/m/Voq96N9jNPMAAAAC/dance-dancing.gif';
@@ -676,7 +682,7 @@
             { x: 90, y: 50, id: 'right' }
         ];
         let currentCalibIndex = 0;
-        let calibRanges = { minX: -0.1, maxX: 0.1 };
+        let calibRanges = { minX: 0.35, maxX: 0.65 }; // 0-1 scale for iris+nose fused gaze
         let tempSamples = [];
 
         async function init() {
@@ -687,11 +693,11 @@
                     modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
                     delegate: "GPU"
                 },
-                outputFaceBlendshapes: true,
+                outputFaceBlendshapes: false,
                 runningMode: "VIDEO",
                 numFaces: 1
             });
-            status.innerText = "SYSTEM ONLINE";
+            status.innerText = "SYSTEM ONLINE — IRIS + NOSE TRACKING";
             calibBtn.style.display = "block";
             document.getElementById("settingsBtn").style.display = "block";
         }
@@ -1017,31 +1023,54 @@
                 lastVideoTime = video.currentTime;
                 const results = faceLandmarker.detectForVideo(video, performance.now());
 
-                if (results.faceBlendshapes && results.faceBlendshapes.length > 0) {
-                    const blendshapes = results.faceBlendshapes[0].categories;
-                    const getScore = (n) => blendshapes.find(c => c.categoryName === n)?.score || 0;
+                if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+                    const lm = results.faceLandmarks[0];
 
-                    const lx = getScore("eyeLookOutLeft") || getScore("eyeLookInRight");
-                    const rx = getScore("eyeLookInLeft") || getScore("eyeLookOutRight");
+                    // --- Iris signal (landmarks 468, 473 + eye corners) ---
+                    const leftIris = lm[468];
+                    const leftInner = lm[133];
+                    const leftOuter = lm[33];
+                    const leftGazeX = (leftIris.x - leftOuter.x) / (leftInner.x - leftOuter.x);
 
-                    const currentX = rx - lx;
+                    const rightIris = lm[473];
+                    const rightInner = lm[362];
+                    const rightOuter = lm[263];
+                    const rightGazeX = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
+
+                    let rawIrisX = (leftGazeX + rightGazeX) / 2;
+                    rawIrisX = 1.0 - rawIrisX; // Invert for mirror
+                    rawIrisX = Math.max(0, Math.min(1, rawIrisX));
+
+                    // --- Nose signal (landmark 1) ---
+                    const nose = lm[1];
+                    const rawNoseX = 1.0 - nose.x; // Invert for mirror
+
+                    // --- EMA smoothing ---
+                    smoothIrisX += (rawIrisX - smoothIrisX) * SMOOTHING;
+                    smoothNoseX += (rawNoseX - smoothNoseX) * SMOOTHING;
+
+                    // --- Fuse: 60% iris + 40% nose (same as gaze_balls) ---
+                    fusedGazeX = smoothIrisX * 0.6 + smoothNoseX * 0.4;
 
                     if (isCalibrating) {
-                        tempSamples.push({ x: currentX });
+                        // During calibration, collect fused samples
+                        tempSamples.push({ x: fusedGazeX });
                     } else {
-                        updateFocus(currentX);
+                        updateFocus(fusedGazeX);
                     }
                 }
             }
             requestAnimationFrame(predictWebcam);
         }
 
-        function updateFocus(x) {
+        function updateFocus(gazeX) {
             if (isPopping) return;
 
+            // Map fused gaze (0-1) to normX (-1 to +1)
+            // Using calibration range if available, otherwise use 0.5 as center
             const midX = (calibRanges.maxX + calibRanges.minX) / 2;
-            const rangeX = (calibRanges.maxX - calibRanges.minX) || 0.1;
-            const normX = (x - midX) / (rangeX / 2);
+            const rangeX = (calibRanges.maxX - calibRanges.minX) || 0.2;
+            const normX = (gazeX - midX) / (rangeX / 2);
 
             // Update live gaze monitor
             updateGazeMonitor(normX);

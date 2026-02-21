@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gaze Balloon Pop - Right Only</title>
+    <title>Gaze Balloon Pop - Right Only (Iris)</title>
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&display=swap"
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;600;700&display=swap" rel="stylesheet">
@@ -69,8 +69,6 @@
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             animation: float 3s ease-in-out infinite alternate;
         }
-
-
 
         .balloon-string {
             display: none;
@@ -212,33 +210,6 @@
             text-align: center;
         }
 
-        /* Calibration */
-        #calib-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(255, 255, 255, 0.98);
-            z-index: 2000;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .calib-dot {
-            position: absolute;
-            width: 50px;
-            height: 50px;
-            background: #ff4d4d;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 40px rgba(255, 77, 77, 0.6);
-            border: 6px solid white;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
         #webcam-preview {
             position: fixed;
             bottom: 30px;
@@ -375,7 +346,6 @@
             box-shadow: 0 0 10px rgba(255, 77, 77, 0.6);
         }
 
-        /* Threshold markers on the bar */
         .threshold-marker {
             position: absolute;
             top: 0;
@@ -547,38 +517,32 @@
 
     <div class="controls">
         <button id="startBtn" class="btn">Start Tracking</button>
-        <button id="calibBtn" class="btn" style="background:#4caf50; display:none;">Calibrate</button>
         <button id="settingsBtn" class="btn btn-settings" style="display:none;">⚙ Settings</button>
-        <div id="status">INITLALIZING...</div>
+        <div id="status">INITIALIZING...</div>
     </div>
 
     <!-- Settings Panel -->
     <div id="settings-panel">
-        <h3>⚙ Manual Calibration</h3>
+        <h3>⚙ Iris + Nose Tracking</h3>
         <div class="setting-group">
-            <label>Min X (Left Edge) <span id="minX-val">-0.10</span></label>
-            <input type="range" id="slider-minX" min="-0.50" max="0.00" step="0.01" value="-0.10">
+            <label>Right Zone Threshold <span id="threshold-val">0.62</span></label>
+            <input type="range" id="slider-threshold" min="0.50" max="0.85" step="0.01" value="0.62">
         </div>
         <div class="setting-group">
-            <label>Max X (Right Edge) <span id="maxX-val">0.10</span></label>
-            <input type="range" id="slider-maxX" min="0.00" max="0.50" step="0.01" value="0.10">
-        </div>
-        <div class="setting-group">
-            <label>Neutral Zone <span id="threshold-val">0.75</span></label>
-            <input type="range" id="slider-threshold" min="0.10" max="0.95" step="0.05" value="0.75">
+            <label>Smoothing (EMA) <span id="smoothing-val">0.20</span></label>
+            <input type="range" id="slider-smoothing" min="0.05" max="0.80" step="0.05" value="0.20">
         </div>
         <div class="setting-group">
             <label>Dwell Time <span id="dwell-val">3.0s</span></label>
             <input type="range" id="slider-dwell" min="500" max="6000" step="100" value="3000">
         </div>
         <div id="gaze-monitor">
-            <div class="monitor-label">LIVE GAZE</div>
+            <div class="monitor-label">FUSED GAZE: 60% IRIS + 40% NOSE (X)</div>
             <div id="gaze-bar-container">
-                <div class="threshold-marker" id="marker-left"></div>
                 <div class="threshold-marker" id="marker-right"></div>
                 <div id="gaze-indicator"></div>
             </div>
-            <div id="gaze-value-text">0.000</div>
+            <div id="gaze-value-text">0.500</div>
         </div>
     </div>
 
@@ -588,13 +552,6 @@
                 <div class="progress-fill" id="progress-right"></div>
             </div>
         </div>
-    </div>
-
-    <div id="calib-overlay">
-        <div id="calib-dot" class="calib-dot"></div>
-        <div
-            style="position:absolute; top:40%; width:100%; text-align:center; font-size:28px; font-weight:700; color: #1a1f29;">
-            LOOK AT THE RED DOT</div>
     </div>
 
     <!-- Win Overlay -->
@@ -616,10 +573,7 @@
 
         const video = document.getElementById("webcam-preview");
         const startBtn = document.getElementById("startBtn");
-        const calibBtn = document.getElementById("calibBtn");
-        const status = document.getElementById("status");
-        const calibOverlay = document.getElementById("calib-overlay");
-        const calibDot = document.getElementById("calib-dot");
+        const statusEl = document.getElementById("status");
         const gameContainer = document.getElementById("game-container");
 
         const wrapperRight = document.getElementById("wrapper-right");
@@ -631,115 +585,88 @@
         let lastVideoTime = -1;
         let audioCtx = null;
 
-        // Dwell logic
-        let currentFocusedSide = null;
+        // --- Iris + Nose gaze tracking (from gaze_balls method) ---
+        let smoothIrisX = 0.5;  // Smoothed iris gaze
+        let smoothNoseX = 0.5;  // Smoothed nose pointing
+        let fusedGazeX = 0.5;   // Fused signal: 60% iris + 40% nose
+        let SMOOTHING = 0.20;   // EMA factor (lower = more smooth, higher = more responsive)
+
+        // --- Zone threshold ---
+        // When smoothed iris gaze X goes above this, we consider the user "looking right"
+        let rightThreshold = 0.62;
+
+        // --- Dwell logic ---
+        let isFocused = false;
         let dwellStartTime = null;
         let dwellThreshold = 3000; // 3 seconds
         let isPopping = false;
-        let gazeThreshold = 0.75; // Neutral zone threshold
 
-        // Character GIF — right character only
+        // Character GIF
         const RIGHT_GIF = 'https://media1.tenor.com/m/0j-aMja9PjwAAAAC/dance-happy-dance.gif';
 
         function setCharacter() {
             balloonRight.style.backgroundImage = `url('${RIGHT_GIF}')`;
         }
 
-        // Calibration logic
-        let isCalibrating = false;
-        const calibPoints = [
-            { x: 50, y: 50, id: 'center' },
-            { x: 10, y: 50, id: 'left' },
-            { x: 90, y: 50, id: 'right' }
-        ];
-        let currentCalibIndex = 0;
-        let calibRanges = { minX: -0.1, maxX: 0.1 };
-        let tempSamples = [];
-
+        // --- Init ---
         async function init() {
-            status.innerText = "LOADING AI MODELS...";
+            statusEl.innerText = "LOADING AI MODELS...";
             const filesetResolver = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
             faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
                 baseOptions: {
                     modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
                     delegate: "GPU"
                 },
-                outputFaceBlendshapes: true,
+                outputFaceBlendshapes: false,
                 runningMode: "VIDEO",
                 numFaces: 1
             });
-            status.innerText = "SYSTEM ONLINE";
-            calibBtn.style.display = "block";
+            statusEl.innerText = "READY — NO CALIBRATION NEEDED";
             document.getElementById("settingsBtn").style.display = "block";
         }
 
         init();
 
         startBtn.addEventListener("click", toggleTracking);
-        calibBtn.addEventListener("click", startCalibration);
 
-        // --- Settings Panel Logic ---
+        // --- Settings Panel ---
         const settingsBtn = document.getElementById("settingsBtn");
         const settingsPanel = document.getElementById("settings-panel");
-        const sliderMinX = document.getElementById("slider-minX");
-        const sliderMaxX = document.getElementById("slider-maxX");
-        const sliderThreshold = document.getElementById("slider-threshold");
-        const sliderDwell = document.getElementById("slider-dwell");
         const gazeIndicator = document.getElementById("gaze-indicator");
         const gazeValueText = document.getElementById("gaze-value-text");
-        const markerLeft = document.getElementById("marker-left");
         const markerRight = document.getElementById("marker-right");
 
         settingsBtn.addEventListener("click", () => {
             settingsPanel.classList.toggle("visible");
         });
 
-        sliderMinX.addEventListener("input", (e) => {
-            calibRanges.minX = parseFloat(e.target.value);
-            document.getElementById("minX-val").textContent = calibRanges.minX.toFixed(2);
-            updateThresholdMarkers();
+        document.getElementById("slider-threshold").addEventListener("input", (e) => {
+            rightThreshold = parseFloat(e.target.value);
+            document.getElementById("threshold-val").textContent = rightThreshold.toFixed(2);
+            updateMarker();
         });
 
-        sliderMaxX.addEventListener("input", (e) => {
-            calibRanges.maxX = parseFloat(e.target.value);
-            document.getElementById("maxX-val").textContent = calibRanges.maxX.toFixed(2);
-            updateThresholdMarkers();
+        document.getElementById("slider-smoothing").addEventListener("input", (e) => {
+            SMOOTHING = parseFloat(e.target.value);
+            document.getElementById("smoothing-val").textContent = SMOOTHING.toFixed(2);
         });
 
-        sliderThreshold.addEventListener("input", (e) => {
-            gazeThreshold = parseFloat(e.target.value);
-            document.getElementById("threshold-val").textContent = gazeThreshold.toFixed(2);
-            updateThresholdMarkers();
-        });
-
-        sliderDwell.addEventListener("input", (e) => {
+        document.getElementById("slider-dwell").addEventListener("input", (e) => {
             dwellThreshold = parseInt(e.target.value);
             document.getElementById("dwell-val").textContent = (dwellThreshold / 1000).toFixed(1) + "s";
         });
 
-        function updateThresholdMarkers() {
-            // Map threshold positions onto the bar (0-100%)
-            const leftPos = ((1 - gazeThreshold) / 2) * 100;
-            const rightPos = ((1 + gazeThreshold) / 2) * 100;
-            markerLeft.style.left = leftPos + "%";
-            markerRight.style.left = rightPos + "%";
+        function updateMarker() {
+            // Map threshold (0-1) to bar position (0-100%)
+            markerRight.style.left = (rightThreshold * 100) + "%";
         }
 
-        function syncSlidersFromCalib() {
-            sliderMinX.value = calibRanges.minX;
-            sliderMaxX.value = calibRanges.maxX;
-            document.getElementById("minX-val").textContent = calibRanges.minX.toFixed(2);
-            document.getElementById("maxX-val").textContent = calibRanges.maxX.toFixed(2);
-            updateThresholdMarkers();
-        }
-
-        function updateGazeMonitor(normX) {
-            // normX is -1 to 1, map to 0-100%
-            const pct = Math.max(0, Math.min(100, ((normX + 1) / 2) * 100));
+        function updateGazeMonitor(gazeX) {
+            const pct = Math.max(0, Math.min(100, gazeX * 100));
             gazeIndicator.style.left = pct + "%";
-            gazeValueText.textContent = normX.toFixed(3);
+            gazeValueText.textContent = gazeX.toFixed(3);
 
-            if (normX <= -gazeThreshold || normX >= gazeThreshold) {
+            if (gazeX >= rightThreshold) {
                 gazeIndicator.classList.add("in-zone");
                 gazeValueText.style.color = "#ff4d4d";
             } else {
@@ -748,11 +675,11 @@
             }
         }
 
-        // Init markers
-        updateThresholdMarkers();
+        // Init marker position
+        updateMarker();
 
+        // --- Webcam toggle ---
         async function toggleTracking() {
-            // Lazy init audio context on user gesture
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
             if (webcamRunning) {
@@ -768,21 +695,119 @@
             }
         }
 
-        // --- Sound Synthesis ---
+        // =====================================================
+        // CORE: Iris + Nose gaze (exactly as gaze_balls method)
+        // =====================================================
+
+        function computeIrisGazeX(lm) {
+            // Left eye: iris center (468) relative to eye corners (outer=33, inner=133)
+            const leftIris = lm[468];
+            const leftInner = lm[133];
+            const leftOuter = lm[33];
+            const leftGazeX = (leftIris.x - leftOuter.x) / (leftInner.x - leftOuter.x);
+
+            // Right eye: iris center (473) relative to eye corners (outer=263, inner=362)
+            const rightIris = lm[473];
+            const rightInner = lm[362];
+            const rightOuter = lm[263];
+            const rightGazeX = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
+
+            // Average both eyes
+            let gazeX = (leftGazeX + rightGazeX) / 2;
+
+            // Invert X because webcam is mirrored
+            gazeX = 1.0 - gazeX;
+
+            // Clamp 0-1
+            return Math.max(0, Math.min(1, gazeX));
+        }
+
+        function computeNoseX(lm) {
+            // Nose tip landmark (1) — same as gaze_balls
+            const nose = lm[1];
+            // Invert X because webcam is mirrored
+            return 1.0 - nose.x;
+        }
+
+        function predictWebcam() {
+            if (!webcamRunning) return;
+
+            if (lastVideoTime !== video.currentTime) {
+                lastVideoTime = video.currentTime;
+                const results = faceLandmarker.detectForVideo(video, performance.now());
+
+                if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+                    const lm = results.faceLandmarks[0];
+
+                    // --- Iris signal ---
+                    const rawIrisX = computeIrisGazeX(lm);
+                    smoothIrisX += (rawIrisX - smoothIrisX) * SMOOTHING;
+
+                    // --- Nose signal ---
+                    const rawNoseX = computeNoseX(lm);
+                    smoothNoseX += (rawNoseX - smoothNoseX) * SMOOTHING;
+
+                    // --- Fuse: 60% iris + 40% nose (exactly as gaze_balls) ---
+                    fusedGazeX = smoothIrisX * 0.6 + smoothNoseX * 0.4;
+
+                    // Update monitor
+                    updateGazeMonitor(fusedGazeX);
+
+                    // Zone-based focus detection
+                    updateFocus(fusedGazeX);
+                }
+            }
+            requestAnimationFrame(predictWebcam);
+        }
+
+        function updateFocus(gazeX) {
+            if (isPopping) return;
+
+            const lookingRight = gazeX >= rightThreshold;
+
+            if (lookingRight && !isFocused) {
+                // Just entered right zone
+                isFocused = true;
+                dwellStartTime = performance.now();
+                wrapperRight.classList.add("focused");
+                statusEl.innerText = "→ LOOKING RIGHT";
+            } else if (!lookingRight && isFocused) {
+                // Left the right zone
+                isFocused = false;
+                dwellStartTime = null;
+                wrapperRight.classList.remove("focused");
+                progressRight.style.height = '0%';
+                statusEl.innerText = "TRACKING...";
+            }
+
+            // Update dwell progress
+            if (isFocused && dwellStartTime && wrapperRight.style.opacity !== "0") {
+                const elapsed = performance.now() - dwellStartTime;
+                const progress = Math.min(100, (elapsed / dwellThreshold) * 100);
+                progressRight.style.height = `${progress}%`;
+
+                if (elapsed >= dwellThreshold) {
+                    triggerPop();
+                }
+            }
+        }
+
+        // =====================================================
+        // Sound effects (unchanged)
+        // =====================================================
+
         function playPopSound() {
             if (!audioCtx) return;
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             const noise = audioCtx.createBufferSource();
 
-            // White noise for the "snap"
             const bufferSize = audioCtx.sampleRate * 0.1;
             const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
             for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
             noise.buffer = buffer;
 
-            // Deep thump
             oscillator.type = 'sine';
             oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
             oscillator.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
@@ -800,10 +825,8 @@
             noise.stop(audioCtx.currentTime + 0.2);
         }
 
-        // --- Victory Fanfare Sound ---
         function playWinSound() {
             if (!audioCtx) return;
-            // Play a rising 3-note fanfare  C5 → E5 → G5
             const notes = [523.25, 659.25, 783.99];
             const now = audioCtx.currentTime;
 
@@ -822,10 +845,8 @@
                 osc.stop(now + i * 0.18 + 0.5);
             });
 
-            // Final sustained chord
             setTimeout(() => {
-                const chord = [523.25, 659.25, 783.99];
-                chord.forEach(freq => {
+                [523.25, 659.25, 783.99].forEach(freq => {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     osc.type = 'sine';
@@ -840,32 +861,9 @@
             }, 600);
         }
 
-        // --- Win Screen ---
-        const winOverlay = document.getElementById("win-overlay");
-        const loseOverlay = document.getElementById("lose-overlay");
-
-        function showWinScreen(callback) {
-            playWinSound();
-            winOverlay.style.display = "flex";
-            requestAnimationFrame(() => {
-                winOverlay.classList.add("visible");
-            });
-
-            setTimeout(() => {
-                winOverlay.classList.remove("visible");
-                setTimeout(() => {
-                    winOverlay.style.display = "none";
-                    if (callback) callback();
-                }, 400);
-            }, 4000);
-        }
-
-        // --- Lose Sound ---
         function playLoseSound() {
             if (!audioCtx) return;
             const now = audioCtx.currentTime;
-
-            // Descending "wah wah wah wahhh" trombone
             const notes = [392, 370, 349, 261];
             const durations = [0.3, 0.3, 0.3, 0.8];
             let offset = 0;
@@ -875,7 +873,6 @@
                 const gain = audioCtx.createGain();
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(freq, now + offset);
-                // Add slight vibrato on the last note
                 if (i === notes.length - 1) {
                     const lfo = audioCtx.createOscillator();
                     const lfoGain = audioCtx.createGain();
@@ -897,24 +894,33 @@
             });
         }
 
-        // --- Lose Screen ---
-        function showLoseScreen(callback) {
-            playLoseSound();
-            loseOverlay.style.display = "flex";
-            requestAnimationFrame(() => {
-                loseOverlay.classList.add("visible");
-            });
+        // =====================================================
+        // Win / Lose / Effects (unchanged)
+        // =====================================================
 
+        const winOverlay = document.getElementById("win-overlay");
+        const loseOverlay = document.getElementById("lose-overlay");
+
+        function showWinScreen(callback) {
+            playWinSound();
+            winOverlay.style.display = "flex";
+            requestAnimationFrame(() => winOverlay.classList.add("visible"));
             setTimeout(() => {
-                loseOverlay.classList.remove("visible");
-                setTimeout(() => {
-                    loseOverlay.style.display = "none";
-                    if (callback) callback();
-                }, 400);
+                winOverlay.classList.remove("visible");
+                setTimeout(() => { winOverlay.style.display = "none"; if (callback) callback(); }, 400);
             }, 4000);
         }
 
-        // --- Visual Effects ---
+        function showLoseScreen(callback) {
+            playLoseSound();
+            loseOverlay.style.display = "flex";
+            requestAnimationFrame(() => loseOverlay.classList.add("visible"));
+            setTimeout(() => {
+                loseOverlay.classList.remove("visible");
+                setTimeout(() => { loseOverlay.style.display = "none"; if (callback) callback(); }, 400);
+            }, 4000);
+        }
+
         function createBlast(x, y, color) {
             for (let i = 0; i < 20; i++) {
                 const particle = document.createElement('div');
@@ -922,14 +928,10 @@
                 particle.style.backgroundColor = color;
                 particle.style.left = x + 'px';
                 particle.style.top = y + 'px';
-
                 const angle = Math.random() * Math.PI * 2;
-                const velocity = 5 + Math.random() * 15;
                 const tx = Math.cos(angle) * 150;
                 const ty = Math.sin(angle) * 150;
-
                 gameContainer.appendChild(particle);
-
                 particle.animate([
                     { transform: 'translate(0, 0) scale(1)', opacity: 1 },
                     { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
@@ -946,117 +948,17 @@
             setTimeout(() => gameContainer.classList.remove('shake'), 400);
         }
 
-        // --- Core Logic ---
-        function startCalibration() {
-            if (!webcamRunning) {
-                alert("Please start tracking first!");
-                return;
-            }
-            isCalibrating = true;
-            currentCalibIndex = 0;
-            tempSamples = [];
-            calibOverlay.style.display = "flex";
-            showNextCalibPoint();
-        }
-
-        function showNextCalibPoint() {
-            if (currentCalibIndex >= calibPoints.length) {
-                finalizeCalibration();
-                return;
-            }
-            const pt = calibPoints[currentCalibIndex];
-            calibDot.style.left = pt.x + "%";
-            calibDot.style.top = pt.y + "%";
-
-            setTimeout(() => {
-                currentCalibIndex++;
-                showNextCalibPoint();
-            }, 2000);
-        }
-
-        function finalizeCalibration() {
-            isCalibrating = false;
-            calibOverlay.style.display = "none";
-
-            if (tempSamples.length > 0) {
-                const xs = tempSamples.map(s => s.x);
-                calibRanges.minX = Math.min(...xs);
-                calibRanges.maxX = Math.max(...xs);
-            }
-            status.innerText = "CALIBRATION READY";
-            syncSlidersFromCalib();
-        }
-
-        function predictWebcam() {
-            if (!webcamRunning) return;
-
-            if (lastVideoTime !== video.currentTime) {
-                lastVideoTime = video.currentTime;
-                const results = faceLandmarker.detectForVideo(video, performance.now());
-
-                if (results.faceBlendshapes && results.faceBlendshapes.length > 0) {
-                    const blendshapes = results.faceBlendshapes[0].categories;
-                    const getScore = (n) => blendshapes.find(c => c.categoryName === n)?.score || 0;
-
-                    const lx = getScore("eyeLookOutLeft") || getScore("eyeLookInRight");
-                    const rx = getScore("eyeLookInLeft") || getScore("eyeLookOutRight");
-
-                    const currentX = rx - lx;
-
-                    if (isCalibrating) {
-                        tempSamples.push({ x: currentX });
-                    } else {
-                        updateFocus(currentX);
-                    }
-                }
-            }
-            requestAnimationFrame(predictWebcam);
-        }
-
-        function updateFocus(x) {
-            if (isPopping) return;
-
-            const midX = (calibRanges.maxX + calibRanges.minX) / 2;
-            const rangeX = (calibRanges.maxX - calibRanges.minX) || 0.1;
-            const normX = (x - midX) / (rangeX / 2);
-
-            // Update live gaze monitor
-            updateGazeMonitor(normX);
-
-            let newFocusedSide = null;
-            if (normX >= gazeThreshold) newFocusedSide = 'right';
-
-            if (newFocusedSide !== currentFocusedSide) {
-                currentFocusedSide = newFocusedSide;
-                dwellStartTime = currentFocusedSide ? performance.now() : null;
-
-                wrapperRight.classList.remove("focused");
-                progressRight.style.height = '0%';
-
-                if (currentFocusedSide === 'right' && wrapperRight.style.opacity !== "0") {
-                    wrapperRight.classList.add("focused");
-                }
-            }
-
-            if (currentFocusedSide === 'right' && dwellStartTime && wrapperRight.style.opacity !== "0") {
-                const elapsed = performance.now() - dwellStartTime;
-                const progress = Math.min(100, (elapsed / dwellThreshold) * 100);
-                progressRight.style.height = `${progress}%`;
-
-                if (elapsed >= dwellThreshold) {
-                    triggerPop();
-                }
-            }
-        }
+        // =====================================================
+        // Trigger Pop
+        // =====================================================
 
         function triggerPop() {
             isPopping = true;
+            isFocused = false;
             const rect = balloonRight.getBoundingClientRect();
 
-            // Pop the balloon
             balloonRight.classList.add("popped");
 
-            // Blast Effects
             setTimeout(() => {
                 playPopSound();
                 triggerShake();
@@ -1065,22 +967,19 @@
                 wrapperRight.style.opacity = "0";
                 balloonRight.classList.remove("popped");
                 progressRight.style.height = '0%';
-
-                currentFocusedSide = null;
                 dwellStartTime = null;
 
-                // Always win since there's only the right character
-                status.innerText = "🏆 YOU WIN!";
+                statusEl.innerText = "🏆 YOU WIN!";
                 showWinScreen(() => {
                     isPopping = false;
                     setCharacter();
                     wrapperRight.style.opacity = "1";
-                    if (!isCalibrating) status.innerText = "TARGET RELOADED";
+                    statusEl.innerText = "TARGET RELOADED";
                 });
             }, 300);
         }
 
-        // Initial character set on load
+        // Initial character set
         setCharacter();
     </script>
 </body>
